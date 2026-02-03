@@ -700,6 +700,8 @@ def run_crawl_job(job_id: str, url: str, max_depth: int, title: str | None, tags
                     source_id=source.id,
                     content=chunk.content,
                     chunk_index=chunk.chunk_number,
+                    url=page.url,
+                    title=page.title,
                     metadata={"url": page.url, "title": page.title},
                 )
                 total_chunks += 1
@@ -773,6 +775,8 @@ def run_upload_job(job_id: str, file_path: str, title: str, tags: list[str] | No
                 source_id=source.id,
                 content=chunk.content,
                 chunk_index=chunk.chunk_number,
+                url=f"file://{file_path}",
+                title=doc.title,
                 metadata={"title": doc.title, "path": file_path},
             )
         
@@ -851,6 +855,8 @@ def run_refresh_job(job_id: str, source_id: str, url: str, title: str | None):
                 source_id=source_id,
                 content=chunk.content,
                 chunk_index=chunk.chunk_number,
+                url=page.url,
+                title=page.title,
                 metadata={"url": page.url, "title": page.title},
             )
             total_chunks += 1

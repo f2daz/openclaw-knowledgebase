@@ -166,6 +166,11 @@ class KnowledgeBase:
             "metadata": metadata or {},
         }
         
+        # Include url if provided (required by schema)
+        if url:
+            data["url"] = url
+        if title:
+            data["title"] = title
         if embedding:
             data["embedding"] = embedding
         
