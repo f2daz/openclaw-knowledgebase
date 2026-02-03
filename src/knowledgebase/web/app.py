@@ -235,6 +235,28 @@ def create_app() -> FastAPI:
             "ollama": {"ok": ollama_ok, "message": ollama_msg},
         }
     
+    @app.put("/api/settings")
+    async def api_save_settings(request: Request):
+        """Save runtime settings (session-only, not persisted to .env)."""
+        import os
+        data = await request.json()
+        
+        # Update environment variables for this process
+        if "embedding_model" in data:
+            os.environ["EMBEDDING_MODEL"] = data["embedding_model"]
+        if "chunk_size" in data:
+            os.environ["CHUNK_SIZE"] = str(data["chunk_size"])
+        if "chunk_overlap" in data:
+            os.environ["CHUNK_OVERLAP"] = str(data["chunk_overlap"])
+        if "debug" in data:
+            os.environ["DEBUG"] = "1" if data["debug"] else "0"
+        
+        # Reload config
+        from knowledgebase.config import reload_config
+        reload_config()
+        
+        return {"status": "ok", "message": "Settings saved for this session"}
+    
     @app.get("/api/export/search")
     async def api_export_search(
         q: str = Query(...),
@@ -307,6 +329,7 @@ def create_app() -> FastAPI:
         url: str = Form(...),
         max_depth: int = Form(default=2),
         title: str = Form(default=None),
+        tags: str = Form(default=""),
     ):
         """Start crawling a URL."""
         from knowledgebase.ingest.crawler import check_crawler_deps
@@ -315,6 +338,9 @@ def create_app() -> FastAPI:
         ok, msg = check_crawler_deps()
         if not ok:
             raise HTTPException(status_code=400, detail=msg)
+        
+        # Parse tags
+        tag_list = [t.strip().lower() for t in tags.split(",") if t.strip()] if tags else []
         
         # Create job
         job_id = str(uuid.uuid4())[:8]
@@ -331,7 +357,7 @@ def create_app() -> FastAPI:
         }
         
         # Start background task
-        background_tasks.add_task(run_crawl_job, job_id, url, max_depth, title)
+        background_tasks.add_task(run_crawl_job, job_id, url, max_depth, title, tag_list)
         
         return {"job_id": job_id, "status": "started"}
     
@@ -340,6 +366,7 @@ def create_app() -> FastAPI:
         background_tasks: BackgroundTasks,
         file: UploadFile = File(...),
         title: str = Form(default=None),
+        tags: str = Form(default=""),
     ):
         """Upload and process a document."""
         # Save to temp file
@@ -348,6 +375,9 @@ def create_app() -> FastAPI:
             content = await file.read()
             tmp.write(content)
             tmp_path = tmp.name
+        
+        # Parse tags
+        tag_list = [t.strip().lower() for t in tags.split(",") if t.strip()] if tags else []
         
         # Create job
         job_id = str(uuid.uuid4())[:8]
@@ -363,7 +393,7 @@ def create_app() -> FastAPI:
         }
         
         # Start background task
-        background_tasks.add_task(run_upload_job, job_id, tmp_path, title or file.filename)
+        background_tasks.add_task(run_upload_job, job_id, tmp_path, title or file.filename, tag_list)
         
         return {"job_id": job_id, "status": "started"}
     
@@ -378,6 +408,23 @@ def create_app() -> FastAPI:
     async def api_jobs():
         """List all jobs."""
         return list(_jobs.values())
+    
+    @app.post("/api/embed")
+    async def api_embed_pending(background_tasks: BackgroundTasks):
+        """Embed all pending chunks."""
+        job_id = str(uuid.uuid4())[:8]
+        _jobs[job_id] = {
+            "id": job_id,
+            "type": "embed",
+            "status": "pending",
+            "progress": 0,
+            "total": 0,
+            "started_at": datetime.now().isoformat(),
+            "error": None,
+        }
+        
+        background_tasks.add_task(run_embed_job, job_id)
+        return {"job_id": job_id, "status": "started"}
     
     @app.delete("/api/sources/{source_id}")
     async def api_delete_source(source_id: str):
@@ -572,13 +619,14 @@ def create_app() -> FastAPI:
 
 # --- Background Jobs ---
 
-def run_crawl_job(job_id: str, url: str, max_depth: int, title: str | None):
+def run_crawl_job(job_id: str, url: str, max_depth: int, title: str | None, tags: list[str] | None = None):
     """Background task to crawl a URL."""
     from knowledgebase.ingest.crawler import crawl_website, crawl_url
     from knowledgebase.ingest.chunker import chunk_markdown
     
     job = _jobs[job_id]
     job["status"] = "running"
+    tags = tags or []
     
     try:
         kb = KnowledgeBase()
@@ -627,7 +675,7 @@ def run_crawl_job(job_id: str, url: str, max_depth: int, title: str | None):
             url=url,
             title=title or pages[0].title or url,
             source_type="web",
-            metadata={"pages_crawled": len(pages), "max_depth": max_depth},
+            metadata={"pages_crawled": len(pages), "max_depth": max_depth, "tags": tags},
         )
         
         if not source:
@@ -674,13 +722,14 @@ def run_crawl_job(job_id: str, url: str, max_depth: int, title: str | None):
         job["error"] = str(e)
 
 
-def run_upload_job(job_id: str, file_path: str, title: str):
+def run_upload_job(job_id: str, file_path: str, title: str, tags: list[str] | None = None):
     """Background task to process an uploaded document."""
     from knowledgebase.ingest.docling_parser import parse_document
     from knowledgebase.ingest.chunker import chunk_markdown
     
     job = _jobs[job_id]
     job["status"] = "running"
+    tags = tags or []
     
     try:
         kb = KnowledgeBase()
@@ -699,7 +748,7 @@ def run_upload_job(job_id: str, file_path: str, title: str):
             url=f"file://{file_path}",
             title=title or doc.title,
             source_type="document",
-            metadata={"format": doc.format, "original_path": file_path},
+            metadata={"format": doc.format, "original_path": file_path, "tags": tags},
         )
         
         if not source:
@@ -816,6 +865,42 @@ def run_refresh_job(job_id: str, source_id: str, url: str, title: str | None):
             "chunks_created": total_chunks,
             "embeddings_generated": embedded,
         }
+        
+    except Exception as e:
+        job["status"] = "error"
+        job["error"] = str(e)
+
+
+def run_embed_job(job_id: str):
+    """Background task to embed all pending chunks."""
+    job = _jobs[job_id]
+    job["status"] = "running"
+    
+    try:
+        kb = KnowledgeBase()
+        
+        # Get pending chunks
+        chunks = kb.get_chunks_without_embeddings(limit=500)
+        job["total"] = len(chunks)
+        job["progress"] = 0
+        
+        if not chunks:
+            job["status"] = "completed"
+            job["result"] = {"embedded": 0, "message": "No pending chunks"}
+            return
+        
+        embedded = 0
+        for i, chunk in enumerate(chunks):
+            job["progress"] = i + 1
+            job["current"] = f"Chunk {i + 1}/{len(chunks)}"
+            
+            embedding = get_embedding(chunk.content)
+            if embedding:
+                kb.update_chunk_embedding(chunk.id, embedding)
+                embedded += 1
+        
+        job["status"] = "completed"
+        job["result"] = {"embedded": embedded, "total": len(chunks)}
         
     except Exception as e:
         job["status"] = "error"

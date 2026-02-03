@@ -65,12 +65,16 @@ class Config:
 # Global config instance
 _config: Config | None = None
 
+# Cache dict for external clearing
+_config_cache: dict = {}
+
 
 def get_config() -> Config:
     """Get or create global config instance."""
     global _config
-    if _config is None:
+    if _config is None or "reload" in _config_cache:
         _config = Config.from_env()
+        _config_cache.pop("reload", None)
     return _config
 
 
@@ -78,3 +82,9 @@ def set_config(config: Config) -> None:
     """Set global config instance."""
     global _config
     _config = config
+
+
+def reload_config() -> Config:
+    """Force reload config from environment."""
+    _config_cache["reload"] = True
+    return get_config()

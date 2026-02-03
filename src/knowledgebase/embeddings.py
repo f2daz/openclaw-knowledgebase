@@ -28,23 +28,25 @@ def get_embedding(
     model = model or config.embedding_model
     ollama_url = ollama_url or config.ollama_url
     
-    # Truncate very long texts (nomic-embed-text has ~8k token limit)
-    text = text[:32000] if len(text) > 32000 else text
+    # Truncate long texts (nomic-embed-text has ~2k token limit)
+    # Special chars/URLs tokenize heavily, so be very conservative
+    max_chars = 3000
+    text = text[:max_chars] if len(text) > max_chars else text
     
     if not text.strip():
         return None
     
     try:
         response = requests.post(
-            f"{ollama_url}/api/embed",
-            json={"model": model, "input": text},
+            f"{ollama_url}/api/embeddings",
+            json={"model": model, "prompt": text},
             timeout=timeout,
         )
         response.raise_for_status()
         
         data = response.json()
-        embeddings = data.get("embeddings", [])
-        return embeddings[0] if embeddings else None
+        embedding = data.get("embedding")
+        return embedding if embedding else None
         
     except requests.exceptions.RequestException as e:
         # Log error but don't crash

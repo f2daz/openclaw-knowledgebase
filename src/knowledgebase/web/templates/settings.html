@@ -64,42 +64,133 @@
         </div>
     </div>
     
-    <!-- Current Configuration -->
-    <div class="glass rounded-xl p-6">
+    <!-- Configuration -->
+    <div class="glass rounded-xl p-6" x-data="{ saving: false, saved: false }">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="font-semibold flex items-center gap-2">
+                <i data-lucide="code" class="w-5 h-5 text-purple-400"></i>
+                Configuration
+            </h2>
+            <span x-show="saved" x-transition class="text-sm text-green-400 flex items-center gap-1">
+                <i data-lucide="check" class="w-4 h-4"></i> Saved
+            </span>
+        </div>
+        
+        <form @submit.prevent="saveSettings($event)" class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <!-- Embedding Model -->
+                <div class="space-y-2">
+                    <label class="text-sm text-gray-400">Embedding Model</label>
+                    <select name="embedding_model" 
+                            class="w-full px-4 py-2.5 rounded-lg glass-light border border-white/10 
+                                   focus:border-cyan-500/50 focus:outline-none text-white">
+                        <option value="nomic-embed-text" {% if config.embedding_model == 'nomic-embed-text' %}selected{% endif %}>
+                            nomic-embed-text (768d)
+                        </option>
+                        <option value="mxbai-embed-large" {% if config.embedding_model == 'mxbai-embed-large' %}selected{% endif %}>
+                            mxbai-embed-large (1024d)
+                        </option>
+                        <option value="all-minilm" {% if config.embedding_model == 'all-minilm' %}selected{% endif %}>
+                            all-minilm (384d)
+                        </option>
+                    </select>
+                    <p class="text-xs text-gray-500">Current: {{ config.embedding_model }}</p>
+                </div>
+                
+                <!-- Embedding Dimensions (read-only) -->
+                <div class="space-y-2">
+                    <label class="text-sm text-gray-400">Embedding Dimensions</label>
+                    <div class="px-4 py-2.5 rounded-lg glass-light border border-white/5 text-gray-400">
+                        {{ config.embedding_dim }}
+                    </div>
+                    <p class="text-xs text-gray-500">Set by model</p>
+                </div>
+                
+                <!-- Chunk Size -->
+                <div class="space-y-2">
+                    <label class="text-sm text-gray-400">Chunk Size (chars)</label>
+                    <input type="number" name="chunk_size" value="{{ config.chunk_size }}"
+                           class="w-full px-4 py-2.5 rounded-lg glass-light border border-white/10 
+                                  focus:border-cyan-500/50 focus:outline-none text-white">
+                    <p class="text-xs text-gray-500">Recommended: 1000-5000</p>
+                </div>
+                
+                <!-- Chunk Overlap -->
+                <div class="space-y-2">
+                    <label class="text-sm text-gray-400">Chunk Overlap (chars)</label>
+                    <input type="number" name="chunk_overlap" value="{{ config.chunk_overlap }}"
+                           class="w-full px-4 py-2.5 rounded-lg glass-light border border-white/10 
+                                  focus:border-cyan-500/50 focus:outline-none text-white">
+                    <p class="text-xs text-gray-500">Recommended: 10-20% of chunk size</p>
+                </div>
+                
+                <!-- Table Prefix (read-only) -->
+                <div class="space-y-2">
+                    <label class="text-sm text-gray-400">Table Prefix</label>
+                    <div class="px-4 py-2.5 rounded-lg glass-light border border-white/5 text-gray-400 font-mono">
+                        {{ config.table_prefix }}
+                    </div>
+                    <p class="text-xs text-gray-500">Set in .env file</p>
+                </div>
+                
+                <!-- Debug Mode -->
+                <div class="space-y-2">
+                    <label class="text-sm text-gray-400">Debug Mode</label>
+                    <div class="flex items-center gap-3 px-4 py-2.5">
+                        <input type="checkbox" name="debug" {% if config.debug %}checked{% endif %}
+                               class="w-5 h-5 rounded bg-white/10 border-white/20 text-cyan-500 focus:ring-cyan-500">
+                        <span class="text-white">Enable debug logging</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex items-center justify-between pt-4 border-t border-white/10">
+                <p class="text-xs text-gray-500">
+                    <i data-lucide="info" class="w-3 h-3 inline"></i>
+                    Settings are stored in session. Use .env for persistent config.
+                </p>
+                <button type="submit" :disabled="saving"
+                        class="px-4 py-2 rounded-lg bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 
+                               disabled:opacity-50 flex items-center gap-2">
+                    <template x-if="!saving">
+                        <span class="flex items-center gap-2">
+                            <i data-lucide="save" class="w-4 h-4"></i>
+                            Save Settings
+                        </span>
+                    </template>
+                    <template x-if="saving">
+                        <span class="flex items-center gap-2">
+                            <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+                            Saving...
+                        </span>
+                    </template>
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- OpenAI API Key (Optional) -->
+    <div class="glass rounded-xl p-6" x-data="{ showKey: false }">
         <h2 class="font-semibold mb-4 flex items-center gap-2">
-            <i data-lucide="code" class="w-5 h-5 text-purple-400"></i>
-            Configuration
+            <i data-lucide="key" class="w-5 h-5 text-yellow-400"></i>
+            API Keys (Optional)
         </h2>
         
-        <div class="grid grid-cols-2 gap-4">
-            <div class="p-4 glass-light rounded-lg">
-                <p class="text-sm text-gray-500 mb-1">Embedding Model</p>
-                <p class="font-mono text-cyan-400">{{ config.ollama_model }}</p>
-            </div>
-            
-            <div class="p-4 glass-light rounded-lg">
-                <p class="text-sm text-gray-500 mb-1">Embedding Dimensions</p>
-                <p class="font-mono text-cyan-400">{{ config.embedding_dim }}</p>
-            </div>
-            
-            <div class="p-4 glass-light rounded-lg">
-                <p class="text-sm text-gray-500 mb-1">Chunk Size</p>
-                <p class="font-mono text-cyan-400">{{ config.chunk_size }} characters</p>
-            </div>
-            
-            <div class="p-4 glass-light rounded-lg">
-                <p class="text-sm text-gray-500 mb-1">Chunk Overlap</p>
-                <p class="font-mono text-cyan-400">{{ config.chunk_overlap }} characters</p>
-            </div>
-            
-            <div class="p-4 glass-light rounded-lg">
-                <p class="text-sm text-gray-500 mb-1">Table Prefix</p>
-                <p class="font-mono text-cyan-400">{{ config.table_prefix }}</p>
-            </div>
-            
-            <div class="p-4 glass-light rounded-lg">
-                <p class="text-sm text-gray-500 mb-1">Debug Mode</p>
-                <p class="font-mono text-cyan-400">{{ 'Enabled' if config.debug else 'Disabled' }}</p>
+        <div class="space-y-4">
+            <div class="space-y-2">
+                <label class="text-sm text-gray-400">OpenAI API Key</label>
+                <div class="relative">
+                    <input :type="showKey ? 'text' : 'password'" name="openai_api_key" 
+                           value="{{ config.openai_api_key or '' }}"
+                           placeholder="sk-..."
+                           class="w-full px-4 py-2.5 pr-10 rounded-lg glass-light border border-white/10 
+                                  focus:border-yellow-500/50 focus:outline-none text-white placeholder-gray-600">
+                    <button type="button" @click="showKey = !showKey" 
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white">
+                        <i :data-lucide="showKey ? 'eye-off' : 'eye'" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <p class="text-xs text-gray-500">For future OpenAI embedding support. Store in .env as OPENAI_API_KEY</p>
             </div>
         </div>
     </div>
@@ -134,4 +225,38 @@
         </div>
     </div>
 </div>
+
+<script>
+function saveSettings(event) {
+    const form = event.target;
+    const formData = new FormData(form);
+    
+    this.saving = true;
+    this.saved = false;
+    
+    // Convert to JSON
+    const data = {
+        embedding_model: formData.get('embedding_model'),
+        chunk_size: parseInt(formData.get('chunk_size')),
+        chunk_overlap: parseInt(formData.get('chunk_overlap')),
+        debug: formData.get('debug') === 'on',
+    };
+    
+    fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    })
+    .then(r => r.json())
+    .then(result => {
+        this.saving = false;
+        this.saved = true;
+        setTimeout(() => { this.saved = false; lucide.createIcons(); }, 3000);
+    })
+    .catch(e => {
+        this.saving = false;
+        alert('Save failed: ' + e.message);
+    });
+}
+</script>
 {% endblock %}
