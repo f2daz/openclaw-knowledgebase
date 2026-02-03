@@ -19,6 +19,7 @@ class Source:
     description: str | None = None  # Optional field
     created_at: str | None = None
     updated_at: str | None = None
+    chunk_count: int = 0  # Populated by list_sources in web app
     
     def __post_init__(self):
         if self.metadata is None:

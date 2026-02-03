@@ -135,6 +135,14 @@ def create_app() -> FastAPI:
         kb = KnowledgeBase()
         sources = kb.list_sources(limit=100)
         
+        # Get chunk counts for each source
+        for source in sources:
+            resp = kb._request("GET", kb._chunks_table, params={
+                "source_id": f"eq.{source.id}",
+                "select": "id",
+            })
+            source.chunk_count = len(resp.json()) if resp.status_code == 200 else 0
+        
         return templates.TemplateResponse("sources.html", {
             "request": request,
             "sources": sources,
