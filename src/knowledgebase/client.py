@@ -13,9 +13,16 @@ class Source:
     """A knowledge source (URL or document)."""
     id: int
     url: str
-    title: str | None
-    source_type: str
-    metadata: dict
+    title: str | None = None
+    source_type: str = "web"
+    metadata: dict = None
+    description: str | None = None  # Optional field
+    created_at: str | None = None
+    updated_at: str | None = None
+    
+    def __post_init__(self):
+        if self.metadata is None:
+            self.metadata = {}
 
 
 @dataclass  
@@ -94,14 +101,23 @@ class KnowledgeBase:
         if resp.status_code == 200:
             result = resp.json()
             if result:
-                return Source(**result[0])
+                s = result[0]
+                known_fields = {"id", "url", "title", "source_type", "metadata", "description", "created_at", "updated_at"}
+                filtered = {k: v for k, v in s.items() if k in known_fields}
+                return Source(**filtered)
         return None
     
     def list_sources(self, limit: int = 100) -> list[Source]:
         """List all sources."""
         resp = self._request("GET", self._sources_table, params={"limit": str(limit)})
         if resp.status_code == 200:
-            return [Source(**s) for s in resp.json()]
+            sources = []
+            for s in resp.json():
+                # Filter to known fields only
+                known_fields = {"id", "url", "title", "source_type", "metadata", "description", "created_at", "updated_at"}
+                filtered = {k: v for k, v in s.items() if k in known_fields}
+                sources.append(Source(**filtered))
+            return sources
         return []
     
     # --- Chunks ---
