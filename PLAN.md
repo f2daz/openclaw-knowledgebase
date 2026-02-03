@@ -1,211 +1,107 @@
-# OpenClaw Knowledgebase - Entwicklungsplan
+# OpenClaw Knowledgebase - Development Plan
 
-## Übersicht
+## Status: v0.1.0 Released ✅
 
-Vier Features werden hinzugefügt:
-1. **Docling-Parser** - PDF/DOCX/PPTX Ingestion
-2. **Web-Crawler** - URLs crawlen und indexieren
-3. **OpenClaw Skill** - Automatische Nutzung durch Agents
-4. **Web-UI** - Benutzeroberfläche für Suche & Verwaltung
+### Completed Features
 
----
+#### 1. Core Infrastructure ✅
+- [x] Supabase client with configurable table prefix
+- [x] Ollama embedding integration
+- [x] Semantic search via RPC functions
+- [x] Hybrid search (semantic + keyword)
+- [x] Fallback client-side vector search
+- [x] Stats and health endpoints
 
-## 1. Docling-Parser 📄
+#### 2. Ingestion Pipeline ✅
+- [x] **Chunker** - Text splitting with overlap
+  - Paragraph/sentence/word break points
+  - Markdown-aware with header preservation
+- [x] **Web Crawler** - URL ingestion
+  - Single page or recursive
+  - Configurable depth (0-3)
+  - Rate limiting
+  - Sitemap support
+- [x] **Document Parser** - File processing
+  - Native: TXT, MD, RST, JSON, YAML, CSV, TSV
+  - Docling: PDF, DOCX, PPTX, XLSX, HTML
 
-**Ziel:** Lokale Dokumente (PDF, DOCX, PPTX, etc.) parsen und in die KB aufnehmen.
+#### 3. CLI ✅
+- [x] `kb status` - Check connections
+- [x] `kb find` - Search with options
+- [x] `kb sources` - List sources
+- [x] `kb embed` - Generate embeddings
+- [x] `kb serve` - Start web UI
 
-**Dateien:**
-- `src/knowledgebase/ingest/docling_parser.py`
-- `src/knowledgebase/ingest/chunker.py`
+#### 4. Web UI ✅
+- [x] Dashboard with stats
+- [x] Live search with HTMX
+- [x] Sources list with delete
+- [x] Add Source modal (crawl/upload)
+- [x] Settings page
+- [x] Glassmorphism design (Archon-inspired)
 
-**Funktionen:**
-```python
-# docling_parser.py
-def parse_document(path: Path) -> Document
-def parse_directory(path: Path, recursive: bool = True) -> list[Document]
-
-# chunker.py  
-def chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]
-def chunk_document(doc: Document) -> list[Chunk]
-```
-
-**CLI-Befehle:**
-```bash
-kb ingest ./documents/           # Verzeichnis
-kb ingest ./manual.pdf           # Einzelne Datei
-kb ingest ./docs/ --recursive    # Rekursiv
-```
-
-**Dependencies:**
-- `docling>=2.0.0` (optional, für PDF/DOCX)
-- Fallback: Nur Markdown/TXT ohne Docling
-
----
-
-## 2. Web-Crawler 🕷️
-
-**Ziel:** Webseiten crawlen, in Markdown konvertieren, chunken und indexieren.
-
-**Dateien:**
-- `src/knowledgebase/ingest/crawler.py`
-
-**Funktionen:**
-```python
-def crawl_url(url: str, max_depth: int = 1) -> list[Page]
-def crawl_sitemap(sitemap_url: str) -> list[Page]
-def html_to_markdown(html: str) -> str
-```
-
-**CLI-Befehle:**
-```bash
-kb crawl https://docs.example.com              # Einzelne Seite
-kb crawl https://docs.example.com --depth 2    # Mit Unterseiten
-kb crawl https://example.com/sitemap.xml       # Via Sitemap
-```
-
-**Dependencies:**
-- `beautifulsoup4>=4.12.0`
-- `html2text>=2024.2.26`
-- `requests` (bereits vorhanden)
-
-**Features:**
-- Respektiert robots.txt
-- Rate-Limiting (1 req/sec default)
-- Duplicate Detection (URL + Content Hash)
-- Incremental Updates (nur neue/geänderte Seiten)
+#### 5. OpenClaw Skill ✅
+- [x] SKILL.md with usage instructions
+- [x] Search workflow examples
 
 ---
 
-## 3. OpenClaw Skill 🦞
+## Future Improvements
 
-**Ziel:** Agents können die KB automatisch durchsuchen.
+### High Priority
+- [ ] Source refresh/re-crawl action
+- [ ] Better error messages in UI
+- [ ] Progress bar for long operations
+- [ ] Chunk preview in search results
 
-**Dateien:**
-- `skills/knowledgebase/SKILL.md`
-- `skills/knowledgebase/search.sh` (oder Python wrapper)
+### Medium Priority
+- [ ] Tags for sources
+- [ ] Search filters (by source, date)
+- [ ] Export search results
+- [ ] Batch delete/operations
+- [ ] Source details page
 
-**SKILL.md Inhalt:**
-```markdown
-# Knowledgebase Skill
+### Low Priority
+- [ ] Multiple embedding models
+- [ ] Re-embed with different model
+- [ ] Custom chunk sizes per source
+- [ ] Scheduled re-crawls
+- [ ] Webhooks for new content
 
-Durchsuche die lokale Wissensdatenbank für relevante Informationen.
-
-## Verwendung
-- Nutze `kb find "query"` für semantische Suche
-- Nutze `kb find "query" --hybrid` für kombinierte Suche
-
-## Wann nutzen
-- Bei Fragen zu Home Assistant, Dokumentation, etc.
-- Bevor du im Web suchst - lokale KB ist schneller und relevanter
-```
-
-**Integration:**
-- Skill in `~/clawd/skills/knowledgebase/` installieren
-- Oder als Teil des Repos unter `skills/`
-
----
-
-## 4. Web-UI 🖥️
-
-**Ziel:** Benutzerfreundliche Oberfläche für Suche und Verwaltung.
-
-**Tech-Stack:**
-- **Backend:** FastAPI (Python, bereits im Projekt)
-- **Frontend:** HTMX + Tailwind + Alpine.js (minimal, kein Build-Step)
-- **Icons:** Lucide Icons (wie Archon)
-
-**Design-Inspiration von Archon UI:**
-- Glassmorphism (blur + semi-transparent)
-- Edge Colors je nach Status
-- Type Badges (Web/Document, Technical/Business)
-- Stat Pills für Counts
-- Grid/Table View Toggle
-- Inline Progress Tracking
-
-**Dateien:**
-- `src/knowledgebase/web/app.py` - FastAPI App
-- `src/knowledgebase/web/templates/` - Jinja2 Templates
-- `src/knowledgebase/web/static/` - CSS/JS
-
-**Seiten:**
-1. **Dashboard** (`/`)
-   - Stats (Sources, Chunks, Embeddings)
-   - Quick Search Box
-   - Recent Activity
-
-2. **Search** (`/search`)
-   - Suchfeld mit Live-Results
-   - Filter: Source, Date, Similarity Threshold
-   - Result Preview mit Highlighting
-
-3. **Sources** (`/sources`)
-   - Liste aller Sources
-   - Add new URL / Upload Document
-   - Delete / Re-crawl Actions
-
-4. **Settings** (`/settings`)
-   - Ollama URL/Model
-   - Chunk Size/Overlap
-   - Re-embed All Button
-
-**CLI-Befehl:**
-```bash
-kb serve                    # Start auf http://localhost:8080
-kb serve --port 3000        # Custom Port
-kb serve --host 0.0.0.0     # Expose im Netzwerk
-```
-
-**Wireframe Dashboard:**
-```
-┌─────────────────────────────────────────────────────────┐
-│  🦞 OpenClaw Knowledgebase                    [Settings]│
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │ 🔍 Search your knowledge base...            [⏎] │   │
-│  └─────────────────────────────────────────────────┘   │
-│                                                         │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐  │
-│  │ Sources  │ │  Chunks  │ │ Embedded │ │ Pending  │  │
-│  │    8     │ │   1100   │ │   1081   │ │    19    │  │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘  │
-│                                                         │
-│  Recent Sources                          [+ Add Source] │
-│  ├─ 📄 Home Assistant Docs      1,050 chunks    ✅     │
-│  ├─ 📄 Pydantic Docs              320 chunks    ✅     │
-│  ├─ 📄 Supabase Docs              180 chunks    ✅     │
-│  └─ ...                                                 │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
-```
+### Performance
+- [ ] Proper pgvector search function
+- [ ] Index optimization
+- [ ] Caching for frequent queries
+- [ ] Async embedding generation
 
 ---
 
-## Reihenfolge & Zeitplan
+## Tech Stack
 
-| # | Feature | Abhängigkeiten | Geschätzte Zeit |
-|---|---------|----------------|-----------------|
-| 1 | Chunker | - | 15 min |
-| 2 | Web-Crawler | Chunker | 30 min |
-| 3 | Docling-Parser | Chunker | 30 min |
-| 4 | OpenClaw Skill | - | 10 min |
-| 5 | Web-UI Backend | - | 45 min |
-| 6 | Web-UI Frontend | Backend | 45 min |
-
-**Total: ~3 Stunden**
-
----
-
-## Abnahmekriterien
-
-- [ ] `kb ingest ./file.pdf` funktioniert
-- [ ] `kb crawl https://example.com` funktioniert
-- [ ] Jarvis kann Skill nutzen für automatische Suche
-- [ ] Web-UI zeigt Dashboard mit Stats
-- [ ] Web-UI Suche liefert Ergebnisse mit Highlighting
-- [ ] Web-UI kann neue URLs hinzufügen
-- [ ] Alle Features dokumentiert in README
+| Component | Choice | Reason |
+|-----------|--------|--------|
+| Embeddings | Ollama + nomic-embed-text | Local, free, 768-dim |
+| Vector DB | Supabase + pgvector | Self-hosted, SQL |
+| Backend | FastAPI | Async, fast, typed |
+| Frontend | HTMX + Tailwind | No build step |
+| Interactivity | Alpine.js | Lightweight |
+| Doc Parsing | Docling | IBM, comprehensive |
+| Web Crawling | BeautifulSoup + html2text | Standard, reliable |
 
 ---
 
-*Plan erstellt: 2026-02-03*
+## Schema Compatibility
+
+The codebase supports different Supabase schemas:
+
+### New Schema (`kb_*`)
+- Uses `schema.sql` provided
+- Full feature support
+
+### Archon Schema (`jarvis_*`)
+- Different column names (`chunk_index` vs `chunk_number`)
+- No `url`/`title` in chunks (stored in metadata)
+- Uses RPC functions for search
+- Fallback to client-side search if needed
+
+Set `TABLE_PREFIX=jarvis` in `.env` to use Archon tables.
