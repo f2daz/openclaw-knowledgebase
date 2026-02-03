@@ -117,9 +117,14 @@
             </nav>
             
             <!-- Footer -->
-            <div class="pt-4 border-t border-white/10">
+            <div class="pt-4 border-t border-white/10 space-y-2">
+                <div class="text-xs text-gray-600">
+                    <span class="text-gray-500">Shortcuts:</span>
+                    <kbd class="px-1 bg-white/5 rounded">/</kbd> search
+                    <kbd class="px-1 bg-white/5 rounded ml-1">n</kbd> new
+                </div>
                 <div class="text-xs text-gray-500">
-                    v0.1.0 • <a href="https://github.com/f2daz/openclaw-knowledgebase" target="_blank" class="hover:text-cyan-400">GitHub</a>
+                    v0.2.0 • <a href="https://github.com/f2daz/openclaw-knowledgebase" target="_blank" class="hover:text-cyan-400">GitHub</a>
                 </div>
             </div>
         </aside>
@@ -147,6 +152,44 @@
         document.body.addEventListener('htmx:afterSwap', function() {
             lucide.createIcons();
         });
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Don't trigger if typing in input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                // Escape to blur input
+                if (e.key === 'Escape') {
+                    e.target.blur();
+                }
+                return;
+            }
+            
+            // / or Ctrl+K = Focus search
+            if (e.key === '/' || (e.ctrlKey && e.key === 'k')) {
+                e.preventDefault();
+                const searchInput = document.querySelector('input[name="q"]');
+                if (searchInput) {
+                    searchInput.focus();
+                } else {
+                    window.location.href = '/search';
+                }
+            }
+            
+            // n = New source (open modal)
+            if (e.key === 'n' && !e.ctrlKey && !e.metaKey) {
+                const body = document.body;
+                if (body.__x && body.__x.$data) {
+                    body.__x.$data.showAddModal = true;
+                }
+            }
+            
+            // g then s = Go to sources
+            // g then d = Go to dashboard
+            // g then h = Go to settings (h for help/settings)
+        });
+        
+        // Help tooltip for keyboard shortcuts
+        console.log('⌨️ Keyboard shortcuts: / = search, n = new source, Esc = close');
     </script>
 </body>
 </html>
