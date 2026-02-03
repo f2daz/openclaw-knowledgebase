@@ -112,6 +112,7 @@ def create_app() -> FastAPI:
         q: str = Query(default=""),
         hybrid: bool = Query(default=False),
         limit: int = Query(default=10),
+        threshold: float = Query(default=0.5),
     ):
         """HTMX endpoint for live search results."""
         results = []
@@ -120,7 +121,7 @@ def create_app() -> FastAPI:
             if hybrid:
                 results = search_hybrid(q, limit=limit)
             else:
-                results = search(q, limit=limit)
+                results = search(q, limit=limit, threshold=threshold)
         
         return templates.TemplateResponse("partials/search_results.html", {
             "request": request,

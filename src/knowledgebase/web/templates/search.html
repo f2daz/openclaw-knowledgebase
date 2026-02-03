@@ -63,6 +63,21 @@
                         <option value="50" {% if limit == 50 %}selected{% endif %}>50</option>
                     </select>
                 </div>
+                
+                <div class="flex items-center gap-2">
+                    <label class="text-sm text-gray-400">Min Score:</label>
+                    <select name="threshold" id="threshold-select"
+                        class="px-3 py-1.5 rounded-lg glass-light border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-500/50"
+                        hx-get="/htmx/search-results"
+                        hx-trigger="change"
+                        hx-target="#results"
+                        hx-include="#search-input, #hybrid-toggle, [name='limit']">
+                        <option value="0.3">30%</option>
+                        <option value="0.5" selected>50%</option>
+                        <option value="0.6">60%</option>
+                        <option value="0.7">70%</option>
+                    </select>
+                </div>
             </div>
         </form>
     </div>
