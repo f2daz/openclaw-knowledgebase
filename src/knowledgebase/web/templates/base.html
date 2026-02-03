@@ -190,6 +190,75 @@
         
         // Help tooltip for keyboard shortcuts
         console.log('⌨️ Keyboard shortcuts: / = search, n = new source, Esc = close');
+        
+        // Job Toast System
+        window.showJobToast = function(jobId, type, title) {
+            // Create toast container if not exists
+            let container = document.getElementById('job-toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'job-toast-container';
+                container.className = 'fixed bottom-4 right-4 z-50 space-y-2';
+                document.body.appendChild(container);
+            }
+            
+            // Create toast element
+            const toast = document.createElement('div');
+            toast.id = `toast-${jobId}`;
+            toast.className = 'glass rounded-xl p-4 min-w-80 shadow-2xl border border-white/10';
+            toast.innerHTML = `
+                <div class="flex items-center gap-3 mb-2">
+                    <i data-lucide="loader-2" class="w-5 h-5 text-cyan-400 animate-spin toast-icon"></i>
+                    <div class="flex-1">
+                        <p class="font-medium text-white">${type === 'crawl' ? 'Crawling' : type === 'upload' ? 'Processing' : 'Working'}...</p>
+                        <p class="text-xs text-gray-400 truncate max-w-64">${title || ''}</p>
+                    </div>
+                    <span class="text-xs text-gray-500 toast-progress">0%</span>
+                </div>
+                <div class="h-1.5 bg-black/30 rounded-full overflow-hidden">
+                    <div class="h-full bg-gradient-to-r from-cyan-500 to-cyan-400 transition-all duration-300 toast-bar" style="width: 0%"></div>
+                </div>
+                <p class="text-xs text-gray-500 mt-2 truncate toast-current"></p>
+            `;
+            container.appendChild(toast);
+            lucide.createIcons();
+            
+            // Poll job status
+            const pollToast = () => {
+                fetch(`/api/jobs/${jobId}`)
+                    .then(r => r.json())
+                    .then(job => {
+                        const pct = job.total > 0 ? Math.round((job.progress / job.total) * 100) : 0;
+                        toast.querySelector('.toast-progress').textContent = `${pct}%`;
+                        toast.querySelector('.toast-bar').style.width = `${pct}%`;
+                        toast.querySelector('.toast-current').textContent = job.current || '';
+                        
+                        if (job.status === 'completed') {
+                            toast.querySelector('.toast-icon').className = 'w-5 h-5 text-green-400';
+                            toast.querySelector('.toast-icon').setAttribute('data-lucide', 'check-circle');
+                            toast.querySelector('.toast-progress').textContent = '✓';
+                            toast.querySelector('.toast-bar').style.width = '100%';
+                            toast.querySelector('.toast-bar').className = 'h-full bg-gradient-to-r from-green-500 to-green-400 transition-all duration-300 toast-bar';
+                            lucide.createIcons();
+                            setTimeout(() => { 
+                                toast.remove(); 
+                                if (window.location.pathname === '/sources') window.location.reload();
+                            }, 3000);
+                        } else if (job.status === 'error') {
+                            toast.querySelector('.toast-icon').className = 'w-5 h-5 text-red-400';
+                            toast.querySelector('.toast-icon').setAttribute('data-lucide', 'x-circle');
+                            toast.querySelector('.toast-current').textContent = job.error || 'Error';
+                            toast.querySelector('.toast-bar').className = 'h-full bg-gradient-to-r from-red-500 to-red-400 transition-all duration-300 toast-bar';
+                            lucide.createIcons();
+                            setTimeout(() => toast.remove(), 5000);
+                        } else {
+                            setTimeout(pollToast, 2000);
+                        }
+                    })
+                    .catch(() => setTimeout(pollToast, 3000));
+            };
+            setTimeout(pollToast, 500);
+        };
     </script>
 </body>
 </html>
