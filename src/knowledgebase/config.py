@@ -14,6 +14,7 @@ class Config:
     # Supabase
     supabase_url: str = ""
     supabase_key: str = ""
+    table_prefix: str = "kb"  # Table prefix: kb_sources, kb_chunks (or jarvis_, etc.)
     
     # Ollama
     ollama_url: str = "http://localhost:11434"
@@ -40,6 +41,7 @@ class Config:
         return cls(
             supabase_url=os.getenv("SUPABASE_URL", ""),
             supabase_key=os.getenv("SUPABASE_KEY", ""),
+            table_prefix=os.getenv("TABLE_PREFIX", "kb"),
             ollama_url=os.getenv("OLLAMA_URL", "http://localhost:11434"),
             embedding_model=os.getenv("EMBEDDING_MODEL", "nomic-embed-text"),
             embedding_dimensions=int(os.getenv("EMBEDDING_DIMENSIONS", "768")),

@@ -108,10 +108,13 @@ Search functions:
 |----------|-------------|---------|
 | `SUPABASE_URL` | Supabase REST API URL | - |
 | `SUPABASE_KEY` | Supabase service key | - |
+| `TABLE_PREFIX` | Prefix for table names (`kb` → `kb_sources`, `kb_chunks`) | `kb` |
 | `OLLAMA_URL` | Ollama API URL | `http://localhost:11434` |
 | `EMBEDDING_MODEL` | Ollama model for embeddings | `nomic-embed-text` |
 | `CHUNK_SIZE` | Characters per chunk | `1000` |
 | `CHUNK_OVERLAP` | Overlap between chunks | `200` |
+
+> **Tip:** Use `TABLE_PREFIX=jarvis` if you have existing `jarvis_sources`/`jarvis_chunks` tables.
 
 ## 🔌 OpenClaw Integration
 

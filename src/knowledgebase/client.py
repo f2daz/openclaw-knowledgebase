@@ -42,6 +42,9 @@ class KnowledgeBase:
             "Authorization": f"Bearer {self.config.supabase_key}",
             "Content-Type": "application/json",
         }
+        # Table names with configurable prefix
+        self._sources_table = f"{self.config.table_prefix}_sources"
+        self._chunks_table = f"{self.config.table_prefix}_chunks"
     
     def _request(
         self,
@@ -78,7 +81,7 @@ class KnowledgeBase:
             "metadata": metadata or {},
         }
         
-        resp = self._request("POST", "kb_sources", data=data)
+        resp = self._request("POST", self._sources_table, data=data)
         if resp.status_code == 201:
             result = resp.json()
             if result:
@@ -87,7 +90,7 @@ class KnowledgeBase:
     
     def get_source(self, url: str) -> Source | None:
         """Get a source by URL."""
-        resp = self._request("GET", "kb_sources", params={"url": f"eq.{url}"})
+        resp = self._request("GET", self._sources_table, params={"url": f"eq.{url}"})
         if resp.status_code == 200:
             result = resp.json()
             if result:
@@ -96,7 +99,7 @@ class KnowledgeBase:
     
     def list_sources(self, limit: int = 100) -> list[Source]:
         """List all sources."""
-        resp = self._request("GET", "kb_sources", params={"limit": str(limit)})
+        resp = self._request("GET", self._sources_table, params={"limit": str(limit)})
         if resp.status_code == 200:
             return [Source(**s) for s in resp.json()]
         return []
@@ -122,7 +125,7 @@ class KnowledgeBase:
             "embedding": embedding,
         }
         
-        resp = self._request("POST", "kb_chunks", data=data)
+        resp = self._request("POST", self._chunks_table, data=data)
         if resp.status_code == 201:
             result = resp.json()
             if result:
@@ -134,7 +137,7 @@ class KnowledgeBase:
         if not chunks:
             return 0
             
-        resp = self._request("POST", "kb_chunks", data=chunks)
+        resp = self._request("POST", self._chunks_table, data=chunks)
         if resp.status_code in (200, 201):
             return len(chunks)
         return 0
@@ -143,7 +146,7 @@ class KnowledgeBase:
         """Get chunks that need embeddings."""
         resp = self._request(
             "GET",
-            "kb_chunks",
+            self._chunks_table,
             params={
                 "embedding": "is.null",
                 "select": "id,source_id,url,chunk_number,title,content",
@@ -158,7 +161,7 @@ class KnowledgeBase:
         """Update a chunk's embedding."""
         resp = self._request(
             "PATCH",
-            "kb_chunks",
+            self._chunks_table,
             data={"embedding": embedding},
             params={"id": f"eq.{chunk_id}"},
         )
@@ -174,7 +177,7 @@ class KnowledgeBase:
         
         resp = self._request(
             "GET",
-            "kb_chunks",
+            self._chunks_table,
             params={**params, "limit": "1"},
         )
         resp.headers.get("content-range", "0-0/0")
@@ -182,7 +185,7 @@ class KnowledgeBase:
         # Use HEAD with Prefer: count=exact for accurate count
         headers = {**self._headers, "Prefer": "count=exact"}
         resp = requests.head(
-            f"{self.config.supabase_url}/rest/v1/kb_chunks",
+            f"{self.config.supabase_url}/rest/v1/{self._chunks_table}",
             headers=headers,
             params=params,
             timeout=10,
@@ -222,7 +225,7 @@ class KnowledgeBase:
         
         # Call the search function via RPC
         resp = requests.post(
-            f"{self.config.supabase_url}/rest/v1/rpc/kb_search_semantic",
+            f"{self.config.supabase_url}/rest/v1/rpc/{self.config.table_prefix}_search_semantic",
             headers=self._headers,
             json={
                 "query_embedding": embedding,
@@ -273,7 +276,7 @@ class KnowledgeBase:
         semantic_weight = semantic_weight or self.config.semantic_weight
         
         resp = requests.post(
-            f"{self.config.supabase_url}/rest/v1/rpc/kb_search_hybrid",
+            f"{self.config.supabase_url}/rest/v1/rpc/{self.config.table_prefix}_search_hybrid",
             headers=self._headers,
             json={
                 "query_embedding": embedding,
@@ -304,8 +307,9 @@ class KnowledgeBase:
     
     def stats(self) -> dict:
         """Get knowledgebase statistics."""
+        # Try RPC function first
         resp = requests.post(
-            f"{self.config.supabase_url}/rest/v1/rpc/kb_stats",
+            f"{self.config.supabase_url}/rest/v1/rpc/{self.config.table_prefix}_stats",
             headers=self._headers,
             json={},
             timeout=10,
@@ -315,9 +319,14 @@ class KnowledgeBase:
             result = resp.json()
             if result:
                 return result[0] if isinstance(result, list) else result
+        
+        # Fallback: count manually
+        total_chunks = self.count_chunks()
+        with_embeddings = self.count_chunks(with_embeddings=True)
+        
         return {
-            "total_sources": 0,
-            "total_chunks": 0,
-            "chunks_with_embeddings": 0,
-            "chunks_without_embeddings": 0,
+            "total_sources": len(self.list_sources()),
+            "total_chunks": total_chunks,
+            "chunks_with_embeddings": with_embeddings,
+            "chunks_without_embeddings": total_chunks - with_embeddings,
         }
