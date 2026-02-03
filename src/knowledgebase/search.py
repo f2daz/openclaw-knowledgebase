@@ -30,12 +30,13 @@ def search(
     return [
         {
             "id": c.id,
+            "source_id": str(c.source_id) if c.source_id else None,
             "url": c.url,
             "title": c.title,
             "content": c.content,
             "similarity": c.similarity,
             "chunk_number": c.chunk_number,
-            "source_type": "web",  # Default, could be enhanced
+            "source_type": "web",
         }
         for c in chunks
     ]
@@ -63,6 +64,7 @@ def search_hybrid(
     return [
         {
             "id": c.id,
+            "source_id": str(c.source_id) if c.source_id else None,
             "url": c.url,
             "title": c.title,
             "content": c.content,
