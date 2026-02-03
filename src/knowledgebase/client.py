@@ -272,7 +272,7 @@ class KnowledgeBase:
         limit = limit or self.config.default_match_count
         threshold = threshold or self.config.similarity_threshold
         
-        # Call the search function via RPC
+        # Try RPC function first (for schemas that have it)
         resp = requests.post(
             f"{self.config.supabase_url}/rest/v1/rpc/{self.config.table_prefix}_search_semantic",
             headers=self._headers,
@@ -286,19 +286,49 @@ class KnowledgeBase:
         
         if resp.status_code == 200:
             results = resp.json()
-            return [
-                Chunk(
-                    id=r["id"],
-                    source_id=r.get("source_id", ""),
-                    content=r["content"],
-                    chunk_index=r.get("chunk_index", 0),
-                    url=r.get("url"),
-                    title=r.get("title"),
-                    similarity=r.get("similarity"),
-                )
-                for r in results
-            ]
-        return []
+            if results:  # Only use if we got results
+                return [
+                    Chunk(
+                        id=r["id"],
+                        source_id=r.get("source_id", ""),
+                        content=r["content"],
+                        chunk_index=r.get("chunk_index", 0),
+                        url=r.get("url"),
+                        title=r.get("title"),
+                        similarity=r.get("similarity"),
+                    )
+                    for r in results
+                ]
+        
+        # Fallback: direct vector search using match_documents function
+        # This is a simpler function that just does cosine similarity
+        fallback_resp = requests.post(
+            f"{self.config.supabase_url}/rest/v1/rpc/match_documents",
+            headers=self._headers,
+            json={
+                "query_embedding": embedding,
+                "match_count": limit,
+                "filter": {},
+            },
+            timeout=30,
+        )
+        
+        if fallback_resp.status_code == 200:
+            results = fallback_resp.json()
+            if results:
+                return [
+                    Chunk(
+                        id=r.get("id", 0),
+                        source_id=r.get("source_id", ""),
+                        content=r.get("content", ""),
+                        chunk_index=r.get("chunk_index", 0),
+                        similarity=r.get("similarity"),
+                    )
+                    for r in results
+                ]
+        
+        # Final fallback: search using our own simple function
+        return self._search_vector_direct(embedding, limit, threshold)
     
     def search_hybrid(
         self,
@@ -379,3 +409,82 @@ class KnowledgeBase:
             "chunks_with_embeddings": with_embeddings,
             "chunks_without_embeddings": total_chunks - with_embeddings,
         }
+    
+    def _search_vector_direct(
+        self,
+        query_embedding: list[float],
+        limit: int = 10,
+        threshold: float = 0.5,
+    ) -> list[Chunk]:
+        """
+        Direct vector search as fallback.
+        Fetches chunks and computes similarity client-side.
+        Note: This is slower than using a proper pgvector function.
+        """
+        import math
+        
+        def cosine_similarity(a: list[float], b: list[float]) -> float:
+            """Compute cosine similarity between two vectors."""
+            dot = sum(x * y for x, y in zip(a, b))
+            norm_a = math.sqrt(sum(x * x for x in a))
+            norm_b = math.sqrt(sum(x * x for x in b))
+            if norm_a == 0 or norm_b == 0:
+                return 0
+            return dot / (norm_a * norm_b)
+        
+        # Fetch chunks with embeddings (limited to avoid memory issues)
+        # This is a fallback, so we accept some limitations
+        resp = self._request(
+            "GET",
+            self._chunks_table,
+            params={
+                "select": "id,source_id,chunk_index,content,embedding",
+                "embedding": "not.is.null",
+                "limit": "500",  # Reasonable limit for fallback
+            },
+        )
+        
+        if resp.status_code != 200:
+            return []
+        
+        chunks_data = resp.json()
+        
+        # Compute similarities
+        results = []
+        for c in chunks_data:
+            emb = c.get("embedding")
+            if not emb:
+                continue
+            
+            # Parse embedding if it's a string (Supabase returns vectors as strings)
+            if isinstance(emb, str):
+                # Format: "[0.1,0.2,...]"
+                try:
+                    emb = [float(x) for x in emb.strip("[]").split(",")]
+                except:
+                    continue
+            
+            sim = cosine_similarity(query_embedding, emb)
+            if sim >= threshold:
+                results.append({
+                    "id": c["id"],
+                    "source_id": c["source_id"],
+                    "content": c["content"],
+                    "chunk_index": c.get("chunk_index", 0),
+                    "similarity": sim,
+                })
+        
+        # Sort by similarity descending
+        results.sort(key=lambda x: x["similarity"], reverse=True)
+        
+        # Return top N
+        return [
+            Chunk(
+                id=r["id"],
+                source_id=r["source_id"],
+                content=r["content"],
+                chunk_index=r["chunk_index"],
+                similarity=r["similarity"],
+            )
+            for r in results[:limit]
+        ]

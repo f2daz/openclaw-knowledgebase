@@ -114,9 +114,11 @@
                          @drop.prevent="handleDrop($event)">
                         <i data-lucide="upload" class="w-8 h-8 text-purple-400 mx-auto mb-2"></i>
                         <p class="text-sm text-gray-400">Click to browse or drag & drop</p>
-                        <p class="text-xs text-gray-500 mt-1">PDF, DOCX, TXT, MD files</p>
+                        <p class="text-xs text-gray-500 mt-1">
+                            PDF, Word, Excel, PowerPoint, CSV, JSON, Markdown, TXT
+                        </p>
                         <input type="file" name="file" x-ref="fileInput" class="hidden"
-                               accept=".pdf,.docx,.doc,.txt,.md,.markdown,.html"
+                               accept=".pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.csv,.tsv,.json,.yaml,.yml,.txt,.md,.markdown,.rst,.html,.htm"
                                @change="fileSelected($event)">
                     </div>
                     <p x-show="selectedFile" class="mt-2 text-sm text-purple-400" x-text="selectedFile"></p>
