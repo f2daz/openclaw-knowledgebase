@@ -119,8 +119,12 @@
                 </div>
             </div>
             
-            <!-- Title -->
-            <h3 class="font-semibold text-white mb-2 line-clamp-2">{{ source.title or 'Untitled' }}</h3>
+            <!-- Title (clickable) -->
+            <a href="/sources/{{ source.id }}" class="block">
+                <h3 class="font-semibold text-white mb-2 line-clamp-2 hover:text-cyan-400 transition-colors">
+                    {{ source.title or 'Untitled' }}
+                </h3>
+            </a>
             
             <!-- URL -->
             <p class="text-xs text-gray-500 truncate mb-2">{{ source.url }}</p>

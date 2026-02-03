@@ -153,6 +153,44 @@ def create_app() -> FastAPI:
             "ollama_msg": ollama_msg,
         })
     
+    @app.get("/sources/{source_id}", response_class=HTMLResponse)
+    async def source_detail_page(request: Request, source_id: str):
+        """Source detail page with all chunks."""
+        kb = KnowledgeBase()
+        
+        # Get source
+        resp = kb._request("GET", kb._sources_table, params={"id": f"eq.{source_id}"})
+        if resp.status_code != 200 or not resp.json():
+            raise HTTPException(status_code=404, detail="Source not found")
+        
+        source_data = resp.json()[0]
+        
+        # Get chunks for this source
+        chunks_resp = kb._request("GET", kb._chunks_table, params={
+            "source_id": f"eq.{source_id}",
+            "select": "id,chunk_index,content,metadata,embedding",
+            "order": "chunk_index.asc",
+            "limit": "100",
+        })
+        
+        chunks = []
+        if chunks_resp.status_code == 200:
+            for c in chunks_resp.json():
+                chunks.append({
+                    "id": c["id"],
+                    "chunk_index": c.get("chunk_index", 0),
+                    "content": c["content"],
+                    "has_embedding": c.get("embedding") is not None,
+                    "char_count": len(c["content"]),
+                })
+        
+        return templates.TemplateResponse("source_detail.html", {
+            "request": request,
+            "source": source_data,
+            "chunks": chunks,
+            "chunk_count": len(chunks),
+        })
+    
     # --- API Endpoints ---
     
     @app.get("/api/stats")

@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}{{ source.title or 'Source' }} - OpenClaw Knowledgebase{% endblock %}
+
+{% block content %}
+<div class="p-6 space-y-6">
+    <!-- Breadcrumb -->
+    <div class="flex items-center gap-2 text-sm text-gray-400">
+        <a href="/sources" class="hover:text-cyan-400">Sources</a>
+        <i data-lucide="chevron-right" class="w-4 h-4"></i>
+        <span class="text-white">{{ source.title or 'Untitled' }}</span>
+    </div>
+    
+    <!-- Header -->
+    <div class="glass rounded-xl p-6 {% if source.source_type == 'web' %}edge-cyan{% else %}edge-purple{% endif %}">
+        <div class="flex items-start justify-between">
+            <div class="flex items-start gap-4">
+                <div class="w-12 h-12 rounded-xl {% if source.source_type == 'web' %}bg-cyan-500/20{% else %}bg-purple-500/20{% endif %} flex items-center justify-center">
+                    <i data-lucide="{% if source.source_type == 'web' %}globe{% else %}file-text{% endif %}" 
+                       class="w-6 h-6 {% if source.source_type == 'web' %}text-cyan-400{% else %}text-purple-400{% endif %}"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-white">{{ source.title or 'Untitled' }}</h1>
+                    {% if source.url %}
+                    <a href="{{ source.url }}" target="_blank" 
+                       class="text-sm text-gray-400 hover:text-cyan-400 flex items-center gap-1 mt-1">
+                        <i data-lucide="external-link" class="w-4 h-4"></i>
+                        {{ source.url[:60] }}{% if source.url|length > 60 %}...{% endif %}
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Actions -->
+            <div class="flex items-center gap-2">
+                {% if source.url and source.url.startswith('http') %}
+                <button onclick="refreshSource('{{ source.id }}', '{{ source.title|e }}')"
+                        class="px-4 py-2 rounded-lg bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 flex items-center gap-2">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    Refresh
+                </button>
+                {% endif %}
+                <button onclick="if(confirm('Delete this source?')) { deleteSource('{{ source.id }}'); window.location='/sources'; }"
+                        class="px-4 py-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 flex items-center gap-2">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    Delete
+                </button>
+            </div>
+        </div>
+        
+        <!-- Meta Info -->
+        <div class="grid grid-cols-4 gap-4 mt-6">
+            <div class="glass-light rounded-lg p-3">
+                <p class="text-xs text-gray-500">Type</p>
+                <p class="text-sm font-medium text-white">{{ source.source_type or 'web' }}</p>
+            </div>
+            <div class="glass-light rounded-lg p-3">
+                <p class="text-xs text-gray-500">Chunks</p>
+                <p class="text-sm font-medium text-white">{{ chunk_count }}</p>
+            </div>
+            <div class="glass-light rounded-lg p-3">
+                <p class="text-xs text-gray-500">Created</p>
+                <p class="text-sm font-medium text-white">{{ source.created_at[:10] if source.created_at else 'Unknown' }}</p>
+            </div>
+            <div class="glass-light rounded-lg p-3">
+                <p class="text-xs text-gray-500">Updated</p>
+                <p class="text-sm font-medium text-white">{{ source.updated_at[:10] if source.updated_at else 'Never' }}</p>
+            </div>
+        </div>
+        
+        <!-- Tags -->
+        {% if source.metadata and source.metadata.tags %}
+        <div class="mt-4 flex flex-wrap gap-2">
+            {% for tag in source.metadata.tags %}
+            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-purple-500/20 text-purple-300">
+                <i data-lucide="tag" class="w-3 h-3"></i>
+                {{ tag }}
+            </span>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <!-- Description -->
+        {% if source.description %}
+        <div class="mt-4 text-sm text-gray-300">
+            {{ source.description }}
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Chunks Section -->
+    <div class="space-y-4">
+        <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold flex items-center gap-2">
+                <i data-lucide="layers" class="w-5 h-5 text-cyan-400"></i>
+                Chunks ({{ chunk_count }})
+            </h2>
+            
+            <!-- Stats -->
+            <div class="flex items-center gap-4 text-sm text-gray-400">
+                <span class="flex items-center gap-1">
+                    <i data-lucide="check-circle" class="w-4 h-4 text-green-400"></i>
+                    {{ chunks|selectattr('has_embedding')|list|length }} with embeddings
+                </span>
+                <span class="flex items-center gap-1">
+                    <i data-lucide="text" class="w-4 h-4"></i>
+                    {{ chunks|sum(attribute='char_count') }} total chars
+                </span>
+            </div>
+        </div>
+        
+        <!-- Chunks List -->
+        <div class="space-y-3">
+            {% for chunk in chunks %}
+            <div class="glass rounded-xl p-4 group">
+                <div class="flex items-start justify-between mb-2">
+                    <div class="flex items-center gap-3">
+                        <span class="px-2 py-1 rounded-lg bg-white/5 text-xs text-gray-400">
+                            #{{ chunk.chunk_index }}
+                        </span>
+                        <span class="text-xs text-gray-500">{{ chunk.char_count }} chars</span>
+                        {% if chunk.has_embedding %}
+                        <span class="flex items-center gap-1 text-xs text-green-400">
+                            <i data-lucide="check" class="w-3 h-3"></i>
+                            embedded
+                        </span>
+                        {% else %}
+                        <span class="flex items-center gap-1 text-xs text-yellow-400">
+                            <i data-lucide="clock" class="w-3 h-3"></i>
+                            pending
+                        </span>
+                        {% endif %}
+                    </div>
+                    <span class="text-xs text-gray-600">ID: {{ chunk.id }}</span>
+                </div>
+                
+                <!-- Content Preview -->
+                <details>
+                    <summary class="cursor-pointer text-sm text-gray-300 hover:text-white">
+                        {{ chunk.content[:150]|e }}{% if chunk.content|length > 150 %}...{% endif %}
+                    </summary>
+                    <div class="mt-3 p-3 bg-black/30 rounded-lg text-sm text-gray-300 max-h-64 overflow-y-auto">
+                        <pre class="whitespace-pre-wrap break-words">{{ chunk.content }}</pre>
+                    </div>
+                </details>
+            </div>
+            {% endfor %}
+        </div>
+        
+        {% if not chunks %}
+        <div class="text-center py-12 glass rounded-xl">
+            <i data-lucide="inbox" class="w-12 h-12 text-gray-600 mx-auto mb-3"></i>
+            <p class="text-gray-500">No chunks found for this source</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function deleteSource(sourceId) {
+    fetch(`/api/sources/${sourceId}`, { method: 'DELETE' })
+        .then(r => r.json())
+        .catch(e => alert('Delete failed: ' + e.message));
+}
+
+function refreshSource(sourceId, title) {
+    fetch(`/api/sources/${sourceId}/refresh`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.job_id && window.showJobToast) {
+                window.showJobToast(data.job_id, 'refresh', title);
+            }
+        })
+        .catch(e => alert('Refresh failed: ' + e.message));
+}
+</script>
+{% endblock %}
