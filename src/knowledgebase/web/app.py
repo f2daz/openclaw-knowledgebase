@@ -439,10 +439,10 @@ def create_app() -> FastAPI:
         """Delete a source and its chunks."""
         kb = KnowledgeBase()
         # Delete chunks first
-        kb._request("DELETE", kb._chunks_table, params={"source_id": f"eq.{source_id}"})
+        kb.delete_chunks_by_source(source_id)
         # Delete source
-        resp = kb._request("DELETE", kb._sources_table, params={"id": f"eq.{source_id}"})
-        if resp.status_code in (200, 204):
+        ok = kb.delete_source_by_id(source_id)
+        if ok:
             return {"status": "deleted", "source_id": source_id}
         raise HTTPException(status_code=500, detail="Failed to delete source")
     
@@ -450,16 +450,14 @@ def create_app() -> FastAPI:
     async def api_refresh_source(source_id: str, background_tasks: BackgroundTasks):
         """Refresh a source by re-crawling/re-processing."""
         kb = KnowledgeBase()
-        
         # Get source info
-        resp = kb._request("GET", kb._sources_table, params={"id": f"eq.{source_id}"})
-        if resp.status_code != 200 or not resp.json():
+        source = kb.get_source_by_id(source_id)
+        if not source:
             raise HTTPException(status_code=404, detail="Source not found")
-        
-        source_data = resp.json()[0]
-        url = source_data.get("url", "")
-        title = source_data.get("title")
-        source_type = source_data.get("source_type", "web")
+
+        url = source.url or ""
+        title = source.title
+        source_type = source.source_type
         
         # Only web sources can be refreshed
         if source_type != "web" or not url.startswith("http"):
@@ -597,11 +595,17 @@ def create_app() -> FastAPI:
     # --- HTMX Partials ---
     
     @app.get("/htmx/add-modal", response_class=HTMLResponse)
+    @app.get("/htmx/add-source-modal", response_class=HTMLResponse)
     async def htmx_add_modal(request: Request):
         """Return the Add Source modal."""
-        return templates.TemplateResponse("partials/add_modal.html", {
+        response = templates.TemplateResponse("partials/add_modal.html", {
             "request": request,
         })
+        # Prevent Safari from caching HTMX responses
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
     
     @app.get("/htmx/job-progress/{job_id}", response_class=HTMLResponse)
     async def htmx_job_progress(request: Request, job_id: str):
@@ -669,7 +673,7 @@ def run_crawl_job(job_id: str, url: str, max_depth: int, title: str | None, tags
             pages = list(crawl_website(
                 url,
                 max_depth=max_depth,
-                max_pages=50,
+                max_pages=500,
                 progress_callback=progress_callback,
             ))
         
@@ -706,18 +710,33 @@ def run_crawl_job(job_id: str, url: str, max_depth: int, title: str | None, tags
                 )
                 total_chunks += 1
         
-        # Generate embeddings
+        # Generate embeddings (with retry and throttling)
         job["current"] = "Generating embeddings..."
-        chunks_to_embed = kb.get_chunks_without_embeddings(limit=500)
+        chunks_to_embed = kb.get_chunks_without_embeddings(limit=2000, source_id=source.id)
         embedded = 0
+        embed_errors = 0
         
         for chunk in chunks_to_embed:
-            # Compare as strings to handle UUID vs int
-            if str(chunk.source_id) == str(source.id):
-                embedding = get_embedding(chunk.content)
-                if embedding:
-                    kb.update_chunk_embedding(chunk.id, embedding)
-                    embedded += 1
+            for attempt in range(3):
+                try:
+                    embedding = get_embedding(chunk.content)
+                    if embedding:
+                        kb.update_chunk_embedding(chunk.id, embedding)
+                        embedded += 1
+                    break
+                except Exception as e:
+                    embed_errors += 1
+                    if attempt < 2:
+                        import time
+                        time.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s
+                    else:
+                        pass  # Skip this chunk after 3 attempts
+
+            # Throttle: small pause every 10 embeddings to avoid overwhelming DB
+            if embedded > 0 and embedded % 10 == 0:
+                import time
+                time.sleep(0.5)
+                job["current"] = f"Generating embeddings... {embedded} done"
         
         job["status"] = "completed"
         job["result"] = {
@@ -725,6 +744,7 @@ def run_crawl_job(job_id: str, url: str, max_depth: int, title: str | None, tags
             "pages_crawled": len(pages),
             "chunks_created": total_chunks,
             "embeddings_generated": embedded,
+            "embed_errors": embed_errors,
         }
         
     except Exception as e:
@@ -780,17 +800,28 @@ def run_upload_job(job_id: str, file_path: str, title: str, tags: list[str] | No
                 metadata={"title": doc.title, "path": file_path},
             )
         
-        # Generate embeddings
+        # Generate embeddings (with retry and throttling)
         job["current"] = "Generating embeddings..."
-        chunks_to_embed = kb.get_chunks_without_embeddings(limit=500)
+        chunks_to_embed = kb.get_chunks_without_embeddings(limit=2000, source_id=source.id)
         embedded = 0
         
         for chunk in chunks_to_embed:
-            if str(chunk.source_id) == str(source.id):
-                embedding = get_embedding(chunk.content)
-                if embedding:
-                    kb.update_chunk_embedding(chunk.id, embedding)
-                    embedded += 1
+            for attempt in range(3):
+                try:
+                    embedding = get_embedding(chunk.content)
+                    if embedding:
+                        kb.update_chunk_embedding(chunk.id, embedding)
+                        embedded += 1
+                    break
+                except Exception:
+                    if attempt < 2:
+                        import time
+                        time.sleep(2 ** attempt)
+
+            if embedded > 0 and embedded % 10 == 0:
+                import time
+                time.sleep(0.5)
+                job["current"] = f"Generating embeddings... {embedded} done"
         
         job["status"] = "completed"
         job["result"] = {
@@ -802,7 +833,7 @@ def run_upload_job(job_id: str, file_path: str, title: str, tags: list[str] | No
         # Cleanup temp file
         try:
             os.unlink(file_path)
-        except:
+        except OSError:
             pass
         
     except Exception as e:
@@ -812,7 +843,7 @@ def run_upload_job(job_id: str, file_path: str, title: str, tags: list[str] | No
 
 def run_refresh_job(job_id: str, source_id: str, url: str, title: str | None):
     """Background task to refresh a source by re-crawling."""
-    from knowledgebase.ingest.crawler import crawl_url
+    from knowledgebase.ingest.crawler import crawl_url, crawl_website
     from knowledgebase.ingest.chunker import chunk_markdown
     
     job = _jobs[job_id]
@@ -821,45 +852,78 @@ def run_refresh_job(job_id: str, source_id: str, url: str, title: str | None):
     try:
         kb = KnowledgeBase()
         
+        # Get original source metadata for max_depth
+        source = kb.get_source_by_id(source_id)
+        max_depth = 0
+        if source and source.metadata:
+            max_depth = source.metadata.get("max_depth", 0)
+        
         # Delete old chunks
         job["current"] = "Deleting old chunks..."
-        kb._request("DELETE", kb._chunks_table, params={"source_id": f"eq.{source_id}"})
+        kb.delete_chunks_by_source(source_id)
         
-        # Re-crawl
-        job["current"] = f"Crawling {url}..."
-        page = crawl_url(url)
+        # Re-crawl with original depth
+        pages_crawled = 0
         
-        if not page:
+        def progress_callback(crawled: int, total: int, current_url: str):
+            nonlocal pages_crawled
+            pages_crawled = crawled
+            job["progress"] = crawled
+            job["total"] = total
+            job["current"] = current_url
+        
+        if max_depth == 0:
+            job["current"] = f"Crawling {url}..."
+            page = crawl_url(url)
+            pages = [page] if page else []
+        else:
+            job["current"] = f"Crawling {url} (depth {max_depth})..."
+            pages = list(crawl_website(
+                url,
+                max_depth=max_depth,
+                max_pages=50,
+                progress_callback=progress_callback,
+            ))
+        
+        if not pages:
             job["status"] = "error"
             job["error"] = "Failed to crawl URL"
             return
         
-        # Update source metadata
+        # Update source metadata (merge with existing to preserve tags etc.)
+        existing_metadata = source.metadata if source and source.metadata else {}
+        updated_metadata = {
+            **existing_metadata,
+            "refreshed_at": datetime.now().isoformat(),
+            "pages_crawled": len(pages),
+            "max_depth": max_depth,
+        }
         kb._request(
             "PATCH",
             kb._sources_table,
             data={
-                "title": title or page.title,
-                "metadata": {"refreshed_at": datetime.now().isoformat()},
+                "title": title or pages[0].title,
+                "metadata": updated_metadata,
             },
             params={"id": f"eq.{source_id}"},
         )
         
-        # Chunk and add content
+        # Chunk and add content from ALL pages
         job["current"] = "Creating chunks..."
-        chunks = chunk_markdown(page.content)
         total_chunks = 0
         
-        for chunk in chunks:
-            kb.add_chunk(
-                source_id=source_id,
-                content=chunk.content,
-                chunk_index=chunk.chunk_number,
-                url=page.url,
-                title=page.title,
-                metadata={"url": page.url, "title": page.title},
-            )
-            total_chunks += 1
+        for page in pages:
+            chunks = chunk_markdown(page.content)
+            for chunk in chunks:
+                kb.add_chunk(
+                    source_id=source_id,
+                    content=chunk.content,
+                    chunk_index=chunk.chunk_number,
+                    url=page.url,
+                    title=page.title,
+                    metadata={"url": page.url, "title": page.title},
+                )
+                total_chunks += 1
         
         # Generate embeddings
         job["current"] = "Generating embeddings..."
@@ -876,6 +940,7 @@ def run_refresh_job(job_id: str, source_id: str, url: str, title: str | None):
         job["status"] = "completed"
         job["result"] = {
             "source_id": source_id,
+            "pages_crawled": len(pages),
             "chunks_created": total_chunks,
             "embeddings_generated": embedded,
         }

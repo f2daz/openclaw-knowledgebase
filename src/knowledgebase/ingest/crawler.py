@@ -1,8 +1,10 @@
 """Web crawler for OpenClaw Knowledgebase."""
 
 import hashlib
+import logging
 import re
 import time
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Callable, Iterator
 from urllib.parse import urljoin, urlparse
@@ -10,6 +12,8 @@ from urllib.parse import urljoin, urlparse
 import requests
 
 from knowledgebase.config import get_config
+
+logger = logging.getLogger(__name__)
 
 # Optional imports
 try:
@@ -173,8 +177,14 @@ def crawl_url(
             },
         )
         
-    except Exception as e:
+    except Exception:
+        logger.exception("crawl_url failed", extra={"url": url})
         return None
+
+
+def normalize_domain(domain: str) -> str:
+    """Normalize domain by removing www. prefix."""
+    return domain.lower().removeprefix("www.")
 
 
 def crawl_website(
@@ -203,15 +213,15 @@ def crawl_website(
     if not ok:
         raise ImportError(msg)
     
-    start_domain = urlparse(start_url).netloc
+    start_domain = normalize_domain(urlparse(start_url).netloc)
     
     # Queue: (url, depth)
-    queue = [(start_url, 0)]
+    queue = deque([(start_url, 0)])
     visited = set()
     crawled = 0
     
     while queue and crawled < max_pages:
-        url, depth = queue.pop(0)
+        url, depth = queue.popleft()
         
         # Skip if already visited
         if url in visited:
@@ -232,9 +242,9 @@ def crawl_website(
             if depth < max_depth:
                 for link in page.links:
                     if link not in visited:
-                        # Check domain
+                        # Check domain (normalize to handle www vs non-www)
                         if same_domain_only:
-                            link_domain = urlparse(link).netloc
+                            link_domain = normalize_domain(urlparse(link).netloc)
                             if link_domain != start_domain:
                                 continue
                         queue.append((link, depth + 1))
@@ -286,5 +296,6 @@ def crawl_sitemap(
             if rate_limit > 0 and i < total - 1:
                 time.sleep(rate_limit)
                 
-    except Exception as e:
+    except Exception:
+        logger.exception("crawl_sitemap failed", extra={"sitemap_url": sitemap_url})
         return
