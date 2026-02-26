@@ -3,41 +3,40 @@
 {% block title %}Dashboard - OpenClaw Knowledgebase{% endblock %}
 
 {% block content %}
-<div class="p-6 space-y-6" x-data="{ embeddingInProgress: false, embeddingProgress: 0 }">
+<div class="p-4 md:p-6 space-y-4 md:space-y-6" x-data="{ embeddingInProgress: false, embeddingProgress: 0 }">
     <!-- Header -->
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold">Dashboard</h1>
-            <p class="text-gray-400 mt-1">Overview of your knowledge base</p>
+            <h1 class="text-xl md:text-2xl font-bold">Dashboard</h1>
+            <p class="text-gray-400 text-sm mt-1">Overview of your knowledge base</p>
         </div>
         
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2 md:gap-4 w-full sm:w-auto">
             <!-- Quick Search -->
-            <div class="w-80">
+            <div class="flex-1 sm:w-64 md:w-80">
                 <form action="/search" method="get" class="relative">
-                    <input type="text" name="q" placeholder="Quick search..." 
+                    <input type="text" name="q" placeholder="Search..." 
                         class="w-full px-4 py-2.5 pl-10 rounded-xl glass-light border border-white/10 
-                               focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20
-                               placeholder-gray-500 text-white">
+                               glow-input placeholder-gray-500 text-white">
                     <i data-lucide="search" class="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
                 </form>
             </div>
             
-            <!-- Add Button -->
+            <!-- Add Button (hidden on mobile - use bottom nav) -->
             <button @click="showAddModal = true" 
-                    class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 
-                           hover:from-cyan-600 hover:to-cyan-700 text-white flex items-center gap-2
-                           shadow-lg shadow-cyan-500/30 transition-all">
+                    class="hidden sm:flex px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 
+                           hover:from-cyan-600 hover:to-cyan-700 text-white items-center gap-2
+                           glow-btn transition-all">
                 <i data-lucide="plus" class="w-5 h-5"></i>
-                Add
+                <span class="hidden md:inline">Add</span>
             </button>
         </div>
     </div>
     
     <!-- Stats Cards -->
-    <div class="grid grid-cols-4 gap-4">
-        <!-- Sources -->
-        <div class="glass rounded-xl p-4 edge-purple">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <!-- Sources - Purple Gradient -->
+        <div class="glass rounded-2xl p-4 glow-card glow-card-purple cursor-pointer" onclick="window.location='/sources'">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
                     <i data-lucide="database" class="w-5 h-5 text-purple-400"></i>
@@ -49,11 +48,11 @@
             </div>
         </div>
         
-        <!-- Total Chunks -->
-        <div class="glass rounded-xl p-4 edge-cyan">
+        <!-- Total Chunks - Blue Gradient -->
+        <div class="glass rounded-2xl p-4 glow-card glow-card-blue">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-                    <i data-lucide="file-text" class="w-5 h-5 text-cyan-400"></i>
+                <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                    <i data-lucide="file-text" class="w-5 h-5 text-blue-400"></i>
                 </div>
                 <div>
                     <p class="text-2xl font-bold">{{ stats.total_chunks }}</p>
@@ -62,8 +61,8 @@
             </div>
         </div>
         
-        <!-- With Embeddings -->
-        <div class="glass rounded-xl p-4 edge-green">
+        <!-- With Embeddings - Green Gradient -->
+        <div class="glass rounded-2xl p-4 glow-card glow-card-green">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
                     <i data-lucide="check-circle" class="w-5 h-5 text-green-400"></i>
@@ -75,12 +74,12 @@
             </div>
         </div>
         
-        <!-- Pending -->
-        <div class="glass rounded-xl p-4 {% if stats.chunks_without_embeddings > 0 %}edge-red{% else %}edge-green{% endif %}">
+        <!-- Pending - Red/Green depending on status -->
+        <div class="glass rounded-2xl p-4 glow-card {% if stats.chunks_without_embeddings > 0 %}glow-card-orange{% else %}glow-card-green{% endif %}">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-lg {% if stats.chunks_without_embeddings > 0 %}bg-red-500/20{% else %}bg-green-500/20{% endif %} flex items-center justify-center">
+                <div class="w-10 h-10 rounded-lg {% if stats.chunks_without_embeddings > 0 %}bg-orange-500/20{% else %}bg-green-500/20{% endif %} flex items-center justify-center">
                     <i data-lucide="{% if stats.chunks_without_embeddings > 0 %}clock{% else %}check{% endif %}" 
-                       class="w-5 h-5 {% if stats.chunks_without_embeddings > 0 %}text-red-400{% else %}text-green-400{% endif %}"></i>
+                       class="w-5 h-5 {% if stats.chunks_without_embeddings > 0 %}text-orange-400{% else %}text-green-400{% endif %}"></i>
                 </div>
                 <div>
                     <p class="text-2xl font-bold">{{ stats.chunks_without_embeddings }}</p>
@@ -92,7 +91,7 @@
     
     <!-- Embedding Progress -->
     {% set embed_percent = (stats.chunks_with_embeddings / stats.total_chunks * 100) if stats.total_chunks > 0 else 100 %}
-    <div class="glass rounded-xl p-4">
+    <div class="glass rounded-2xl p-4 glow-card {% if embed_percent >= 95 %}glow-card-green{% elif embed_percent >= 80 %}glow-card-orange{% else %}glow-card-red{% endif %}">
         <div class="flex items-center justify-between mb-2">
             <h3 class="text-sm font-medium text-gray-300 flex items-center gap-2">
                 <i data-lucide="cpu" class="w-4 h-4 text-cyan-400"></i>
@@ -110,7 +109,7 @@
                  style="width: {{ embed_percent }}%"></div>
         </div>
         <div class="flex justify-between items-center mt-2">
-            <div class="text-xs text-gray-500">
+            <div class="text-xs text-gray-300">
                 <span>{{ stats.chunks_with_embeddings }} embedded</span>
                 <span class="mx-2">•</span>
                 <span>{{ stats.chunks_without_embeddings }} pending</span>
@@ -138,75 +137,75 @@
     </div>
     
     <!-- Connection Status -->
-    <div class="glass rounded-xl p-4">
-        <h2 class="font-semibold mb-3 flex items-center gap-2">
-            <i data-lucide="activity" class="w-5 h-5 text-cyan-400"></i>
+    <div class="glass rounded-2xl p-4 glow-card glow-card-blue">
+        <h2 class="font-semibold mb-3 flex items-center gap-2 text-sm md:text-base">
+            <i data-lucide="activity" class="w-5 h-5 text-blue-400"></i>
             System Status
         </h2>
-        <div class="flex items-center gap-6">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6">
             <div class="flex items-center gap-2">
                 {% if ollama_ok %}
-                <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                <span class="text-sm text-gray-300">Ollama Connected</span>
+                <span class="w-2 h-2 rounded-full bg-green-400 glow-pulse"></span>
+                <span class="text-xs sm:text-sm text-gray-300">Ollama</span>
                 {% else %}
                 <span class="w-2 h-2 rounded-full bg-red-400"></span>
-                <span class="text-sm text-red-400">Ollama: {{ ollama_msg }}</span>
+                <span class="text-xs sm:text-sm text-red-400">Ollama offline</span>
                 {% endif %}
             </div>
             <div class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                <span class="text-sm text-gray-300">Supabase Connected</span>
+                <span class="w-2 h-2 rounded-full bg-green-400 glow-pulse"></span>
+                <span class="text-xs sm:text-sm text-gray-300">Supabase</span>
             </div>
         </div>
     </div>
     
-    <!-- Quick Actions -->
-    <div class="grid grid-cols-3 gap-4">
-        <a href="/search" class="glass rounded-xl p-4 hover:bg-white/5 transition-colors group">
+    <!-- Quick Actions (hidden on mobile - use bottom nav) -->
+    <div class="hidden sm:grid grid-cols-3 gap-4">
+        <a href="/search" class="glass rounded-2xl p-4 glow-card glow-card-cyan group">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center group-hover:bg-cyan-500/30">
                     <i data-lucide="search" class="w-5 h-5 text-cyan-400"></i>
                 </div>
                 <div>
                     <p class="font-medium text-white">Search</p>
-                    <p class="text-xs text-gray-500">Find knowledge</p>
+                    <p class="text-xs text-gray-400">Find knowledge</p>
                 </div>
             </div>
         </a>
         
-        <button @click="showAddModal = true" class="glass rounded-xl p-4 hover:bg-white/5 transition-colors group text-left">
+        <button @click="showAddModal = true" class="glass rounded-2xl p-4 glow-card glow-card-purple group text-left">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center group-hover:bg-purple-500/30">
                     <i data-lucide="plus" class="w-5 h-5 text-purple-400"></i>
                 </div>
                 <div>
                     <p class="font-medium text-white">Add Source</p>
-                    <p class="text-xs text-gray-500">URL or document</p>
+                    <p class="text-xs text-gray-400">URL or document</p>
                 </div>
             </div>
         </button>
         
-        <a href="/sources" class="glass rounded-xl p-4 hover:bg-white/5 transition-colors group">
+        <a href="/sources" class="glass rounded-2xl p-4 glow-card glow-card-green group">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center group-hover:bg-green-500/30">
                     <i data-lucide="database" class="w-5 h-5 text-green-400"></i>
                 </div>
                 <div>
                     <p class="font-medium text-white">Sources</p>
-                    <p class="text-xs text-gray-500">{{ stats.total_sources }} indexed</p>
+                    <p class="text-xs text-gray-400">{{ stats.total_sources }} indexed</p>
                 </div>
             </div>
         </a>
     </div>
     
     <!-- Recent Sources -->
-    <div class="glass rounded-xl p-4">
+    <div class="glass rounded-2xl p-4 glow-card glow-card-pink">
         <div class="flex items-center justify-between mb-4">
             <h2 class="font-semibold flex items-center gap-2">
-                <i data-lucide="folder-open" class="w-5 h-5 text-purple-400"></i>
+                <i data-lucide="folder-open" class="w-5 h-5 text-pink-400"></i>
                 Recent Sources
             </h2>
-            <a href="/sources" class="text-sm text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+            <a href="/sources" class="text-sm text-cyan-400 hover:text-cyan-300 flex items-center gap-1 glow-btn px-3 py-1 rounded-lg">
                 View all <i data-lucide="arrow-right" class="w-4 h-4"></i>
             </a>
         </div>
@@ -214,25 +213,25 @@
         {% if sources %}
         <div class="space-y-2">
             {% for source in sources %}
-            <div class="glass-light rounded-lg p-3 flex items-center justify-between hover:bg-white/10 transition-colors">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg {% if source.source_type == 'web' %}bg-cyan-500/20{% else %}bg-purple-500/20{% endif %} flex items-center justify-center">
-                        <i data-lucide="{% if source.source_type == 'web' %}globe{% else %}file{% endif %}" 
-                           class="w-4 h-4 {% if source.source_type == 'web' %}text-cyan-400{% else %}text-purple-400{% endif %}"></i>
-                    </div>
-                    <div>
-                        <p class="font-medium">{{ source.title or 'Untitled' }}</p>
-                        <p class="text-xs text-gray-500 truncate max-w-md">{{ source.url }}</p>
-                    </div>
+            <div class="glass-light rounded-lg p-3 flex items-center gap-3 hover:bg-white/10 transition-all cursor-pointer border border-transparent hover:border-cyan-500/30"
+                 onclick="window.location='/sources/{{ source.id }}'">
+                <div class="w-8 h-8 flex-shrink-0 rounded-lg {% if source.source_type == 'web' %}bg-cyan-500/20{% else %}bg-purple-500/20{% endif %} flex items-center justify-center"
+                     style="{% if source.source_type == 'web' %}box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);{% else %}box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);{% endif %}">
+                    <i data-lucide="{% if source.source_type == 'web' %}globe{% else %}file{% endif %}" 
+                       class="w-4 h-4 {% if source.source_type == 'web' %}text-cyan-400{% else %}text-purple-400{% endif %}"></i>
                 </div>
-                <span class="text-xs px-2 py-1 rounded-full {% if source.source_type == 'web' %}bg-cyan-500/20 text-cyan-400{% else %}bg-purple-500/20 text-purple-400{% endif %}">
+                <div class="flex-1 min-w-0">
+                    <p class="font-medium truncate">{{ source.title or 'Untitled' }}</p>
+                    <p class="text-xs text-gray-300 truncate">{{ source.url }}</p>
+                </div>
+                <span class="text-xs px-2 py-1 rounded-full tag-chip flex-shrink-0">
                     {{ source.source_type or 'web' }}
                 </span>
             </div>
             {% endfor %}
         </div>
         {% else %}
-        <p class="text-gray-500 text-center py-8">No sources yet. Add your first source to get started!</p>
+        <p class="text-gray-400 text-center py-8">No sources yet. Add your first source to get started!</p>
         {% endif %}
     </div>
 </div>
@@ -250,8 +249,8 @@ function embedPending() {
             }
         })
         .catch(e => {
-            console.error('Embed failed:', e);
             this.embeddingInProgress = false;
+            if (window.showToast) window.showToast('error', 'Embedding failed', e.message);
         });
 }
 
@@ -263,16 +262,18 @@ function pollEmbedJob(jobId, ctx) {
             
             if (job.status === 'completed') {
                 ctx.embeddingInProgress = false;
-                setTimeout(() => window.location.reload(), 500);
+                if (window.showToast) window.showToast('success', 'Embeddings generated', `${job.result?.embedded || 0} chunks embedded`);
+                setTimeout(() => window.location.reload(), 1000);
             } else if (job.status === 'error') {
                 ctx.embeddingInProgress = false;
-                alert('Embedding failed: ' + (job.error || 'Unknown error'));
+                if (window.showToast) window.showToast('error', 'Embedding failed', job.error || 'Unknown error');
             } else {
                 setTimeout(() => pollEmbedJob(jobId, ctx), 1000);
             }
         })
         .catch(e => {
             ctx.embeddingInProgress = false;
+            if (window.showToast) window.showToast('error', 'Connection error', e.message);
         });
 }
 </script>

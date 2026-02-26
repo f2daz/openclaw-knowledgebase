@@ -1,0 +1,411 @@
+/*
+ * Unified Theme System for Jarvis Apps (KB + MC)
+ * 
+ * Usage:
+ *   1. Include this CSS file
+ *   2. Set data-theme attribute on <html>: "stealth" | "liquid-glass" | "neon"
+ *   3. Use CSS variables in your styles
+ *   4. Use utility classes (.glass-card, .glass-card-strong, etc.)
+ *
+ * Default: stealth (if no data-theme is set)
+ */
+
+/* ═══════════════════════════════════════════════════════════════
+   BASE / SHARED VALUES
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Base colors (same across all themes) */
+  --color-cyan: #22d3ee;
+  --color-purple: #a855f7;
+  --color-pink: #ec4899;
+  --color-teal: #14b8a6;
+  --color-orange: #f97316;
+  --color-indigo: #6366f1;
+  --color-emerald: #10b981;
+  --color-red: #ef4444;
+  --color-yellow: #eab308;
+  --color-blue: #3b82f6;
+
+  /* Accent (overridable per theme) */
+  --accent: var(--color-cyan);
+  --accent-secondary: var(--color-purple);
+
+  /* Text */
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #64748b;
+  --text-dim: #334155;
+
+  /* Transitions */
+  --theme-transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease, backdrop-filter 0.2s ease;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   🌑 STEALTH (Default)
+   Subtle, clean, minimal. Barely visible orbs, muted glass.
+   ═══════════════════════════════════════════════════════════════ */
+
+:root,
+[data-theme="stealth"] {
+  --bg-base: #020617;
+
+  /* Glass card */
+  --glass-bg: rgba(15, 23, 42, 0.6);
+  --glass-bg-strong: rgba(15, 23, 42, 0.75);
+  --glass-bg-light: rgba(15, 23, 42, 0.4);
+  --glass-blur: 16px;
+  --glass-blur-strong: 24px;
+  --glass-saturate: 100%;
+  --glass-border: rgba(148, 163, 184, 0.1);
+  --glass-border-hover: rgba(148, 163, 184, 0.2);
+
+  /* Inner gradient border (Apple-style) */
+  --glass-inner-border: none;
+  --glass-inset-shadow: none;
+
+  /* Background orbs */
+  --orb-blur: 120px;
+  --orb-1-color: rgba(34, 211, 238, 0.07);  /* cyan */
+  --orb-1-size: 500px;
+  --orb-2-color: rgba(168, 85, 247, 0.07);   /* purple */
+  --orb-2-size: 400px;
+  --orb-3-color: rgba(99, 102, 241, 0.05);   /* indigo */
+  --orb-3-size: 350px;
+  --orb-4-color: transparent;
+  --orb-4-size: 0px;
+  --orb-5-color: transparent;
+  --orb-5-size: 0px;
+  --orb-animation: none;
+
+  /* Input fields */
+  --input-bg: rgba(15, 23, 42, 0.8);
+  --input-border: rgba(100, 116, 139, 0.3);
+  --input-border-focus: rgba(34, 211, 238, 0.5);
+
+  /* Glow effects */
+  --glow-intensity: 0;
+  --card-shadow: none;
+  --card-shadow-hover: 0 0 20px rgba(34, 211, 238, 0.05);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   💎 LIQUID GLASS
+   Apple WWDC 2025 inspired. Key principles:
+   - Lensing: background is warped/refracted, not just blurred
+   - Specular highlights: light reflections on surfaces
+   - Layered: highlight + shadow + illumination layers
+   - Saturate for color vibrancy through glass
+   - Inset shadows for depth and dimension
+   - Inner gradient border (light source top-left)
+   Ref: developer.apple.com/documentation/technologyoverviews/liquid-glass
+   ═══════════════════════════════════════════════════════════════ */
+
+[data-theme="liquid-glass"] {
+  --bg-base: #0a0a1a;
+
+  /* Glass card – Apple-style translucent material, with dark tint for readability */
+  --glass-bg: rgba(10, 10, 30, 0.55);
+  --glass-bg-strong: rgba(10, 10, 30, 0.65);
+  --glass-bg-light: rgba(10, 10, 30, 0.40);
+  --glass-blur: 20px;
+  --glass-blur-strong: 40px;
+  --glass-saturate: 180%;
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-border-hover: rgba(255, 255, 255, 0.30);
+
+  /* Inner gradient border – simulates light hitting top-left edge */
+  --glass-inner-border: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.25) 0%,
+    rgba(255, 255, 255, 0.10) 30%,
+    rgba(255, 255, 255, 0.02) 50%,
+    transparent 70%
+  );
+
+  /* Inset shadow – creates depth like light passing through glass */
+  --glass-inset-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), inset 0 -1px 1px rgba(0, 0, 0, 0.1);
+
+  /* Background orbs – vivid colors with clear edges like Apple's wallpapers */
+  --orb-blur: 3px;
+  --orb-1-color: rgba(34, 211, 238, 0.75);    /* cyan */
+  --orb-1-size: 550px;
+  --orb-2-color: rgba(168, 85, 247, 0.65);    /* purple */
+  --orb-2-size: 500px;
+  --orb-3-color: rgba(236, 72, 153, 0.60);    /* pink */
+  --orb-3-size: 600px;
+  --orb-4-color: rgba(20, 184, 166, 0.55);    /* teal */
+  --orb-4-size: 450px;
+  --orb-5-color: rgba(249, 115, 22, 0.50);    /* orange */
+  --orb-5-size: 200px;
+  --orb-animation: float 20s ease-in-out infinite;
+
+  /* Input fields */
+  --input-bg: rgba(0, 0, 0, 0.25);
+  --input-border: rgba(255, 255, 255, 0.12);
+  --input-border-focus: rgba(255, 255, 255, 0.35);
+
+  /* Glow effects */
+  --glow-intensity: 1;
+  --card-shadow: 0 8px 32px rgba(31, 38, 135, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  --card-shadow-hover: 0 8px 32px rgba(31, 38, 135, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.15);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   🔮 NEON
+   Glowing borders, saturated colors, cyberpunk aesthetic.
+   ═══════════════════════════════════════════════════════════════ */
+
+[data-theme="neon"] {
+  --bg-base: #050510;
+
+  /* Glass card */
+  --glass-bg: rgba(10, 10, 30, 0.7);
+  --glass-bg-strong: rgba(10, 10, 30, 0.85);
+  --glass-bg-light: rgba(10, 10, 30, 0.5);
+  --glass-blur: 12px;
+  --glass-blur-strong: 20px;
+  --glass-saturate: 120%;
+  --glass-border: rgba(34, 211, 238, 0.2);
+  --glass-border-hover: rgba(34, 211, 238, 0.5);
+
+  /* Inner gradient border */
+  --glass-inner-border: none;
+  --glass-inset-shadow: none;
+
+  /* Background orbs */
+  --orb-blur: 80px;
+  --orb-1-color: rgba(34, 211, 238, 0.15);    /* cyan */
+  --orb-1-size: 400px;
+  --orb-2-color: rgba(168, 85, 247, 0.15);     /* purple */
+  --orb-2-size: 350px;
+  --orb-3-color: rgba(236, 72, 153, 0.10);     /* pink */
+  --orb-3-size: 300px;
+  --orb-4-color: transparent;
+  --orb-4-size: 0px;
+  --orb-5-color: transparent;
+  --orb-5-size: 0px;
+  --orb-animation: pulse-glow 4s ease-in-out infinite;
+
+  /* Input fields */
+  --input-bg: rgba(10, 10, 30, 0.8);
+  --input-border: rgba(34, 211, 238, 0.2);
+  --input-border-focus: rgba(34, 211, 238, 0.8);
+
+  /* Glow effects */
+  --glow-intensity: 1;
+  --card-shadow: 0 0 8px rgba(34, 211, 238, 0.1), inset 0 0 8px rgba(34, 211, 238, 0.05);
+  --card-shadow-hover: 0 0 20px rgba(34, 211, 238, 0.3), 0 0 40px rgba(168, 85, 247, 0.1);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   UTILITY CLASSES
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Glass Cards */
+.glass-card {
+  position: relative;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate, 100%));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate, 100%));
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  box-shadow: var(--card-shadow);
+  transition: var(--theme-transition);
+}
+.glass-card:hover {
+  border-color: var(--glass-border-hover);
+  box-shadow: var(--card-shadow-hover);
+}
+
+.glass-card-strong {
+  position: relative;
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate, 100%));
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate, 100%));
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  box-shadow: var(--card-shadow);
+  transition: var(--theme-transition);
+}
+
+.glass-card-light {
+  position: relative;
+  background: var(--glass-bg-light);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate, 100%));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate, 100%));
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  transition: var(--theme-transition);
+}
+
+/* Liquid Shine overlay – Apple-style specular highlight on glass */
+[data-theme="liquid-glass"] .glass-card::after,
+[data-theme="liquid-glass"] .glass-card-strong::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.08) 0%,
+    rgba(255, 255, 255, 0.02) 40%,
+    transparent 60%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Inner gradient border overlay (for Liquid Glass) */
+.glass-card-inner-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--glass-inner-border);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Input fields */
+.glass-input {
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--text-primary);
+  transition: var(--theme-transition);
+}
+.glass-input:focus {
+  border-color: var(--input-border-focus);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.1);
+}
+
+/* Background orbs container */
+.theme-bg-orbs {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+.theme-bg-orbs .orb {
+  position: absolute;
+  border-radius: 50%;
+}
+.theme-bg-orbs .orb-1 {
+  width: var(--orb-1-size);
+  height: var(--orb-1-size);
+  background: var(--orb-1-color);
+  filter: blur(var(--orb-blur));
+  top: -10%;
+  left: -5%;
+  animation: var(--orb-animation);
+}
+.theme-bg-orbs .orb-2 {
+  width: var(--orb-2-size);
+  height: var(--orb-2-size);
+  background: var(--orb-2-color);
+  filter: blur(var(--orb-blur));
+  top: 30%;
+  right: -5%;
+  animation: var(--orb-animation);
+  animation-delay: -7s;
+}
+.theme-bg-orbs .orb-3 {
+  width: var(--orb-3-size);
+  height: var(--orb-3-size);
+  background: var(--orb-3-color);
+  filter: blur(var(--orb-blur));
+  bottom: -10%;
+  left: 25%;
+  animation: var(--orb-animation);
+  animation-delay: -14s;
+}
+.theme-bg-orbs .orb-4 {
+  width: var(--orb-4-size);
+  height: var(--orb-4-size);
+  background: var(--orb-4-color);
+  filter: blur(var(--orb-blur));
+  top: 50%;
+  right: 20%;
+  animation: var(--orb-animation);
+  animation-delay: -10s;
+}
+.theme-bg-orbs .orb-5 {
+  width: var(--orb-5-size);
+  height: var(--orb-5-size);
+  background: var(--orb-5-color);
+  filter: blur(var(--orb-blur));
+  top: 10%;
+  left: 40%;
+  animation: var(--orb-animation);
+  animation-delay: -5s;
+}
+
+/* Glow effects (only active when --glow-intensity is 1) */
+.glow-cyan { box-shadow: 0 0 calc(15px * var(--glow-intensity)) rgba(34, 211, 238, 0.3); }
+.glow-purple { box-shadow: 0 0 calc(15px * var(--glow-intensity)) rgba(168, 85, 247, 0.3); }
+.glow-pink { box-shadow: 0 0 calc(15px * var(--glow-intensity)) rgba(236, 72, 153, 0.3); }
+.glow-emerald { box-shadow: 0 0 calc(15px * var(--glow-intensity)) rgba(16, 185, 129, 0.3); }
+
+/* Accent border highlight */
+.accent-border { border-color: var(--accent); }
+.accent-text { color: var(--accent); }
+.accent-bg { background: var(--accent); }
+
+/* ═══════════════════════════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(20px, -30px) scale(1.02); }
+  50% { transform: translate(-15px, 15px) scale(0.98); }
+  75% { transform: translate(25px, 20px) scale(1.01); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   THEME SWITCHER UI (optional)
+   ═══════════════════════════════════════════════════════════════ */
+
+.theme-switcher {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.theme-switcher-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 2px solid var(--glass-border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+.theme-switcher-btn:hover {
+  transform: scale(1.1);
+}
+.theme-switcher-btn.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.3);
+}
+
+.theme-switcher-btn[data-theme-option="stealth"] {
+  background: linear-gradient(135deg, #0f172a 50%, #1e293b 50%);
+}
+.theme-switcher-btn[data-theme-option="liquid-glass"] {
+  background: linear-gradient(135deg, #22d3ee 0%, #a855f7 50%, #ec4899 100%);
+}
+.theme-switcher-btn[data-theme-option="neon"] {
+  background: #050510;
+  box-shadow: inset 0 0 6px rgba(34, 211, 238, 0.5);
+}

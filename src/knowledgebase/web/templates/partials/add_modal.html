@@ -1,100 +1,252 @@
-<!-- Add Source Modal -->
-<div id="add-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4" 
-     x-data="{ activeTab: 'crawl', isLoading: false, jobId: null, error: null }">
+<!-- Add Knowledge Modal - Redesigned -->
+<div id="add-modal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4" 
+     x-data="{ 
+         mode: 'crawl',
+         knowledgeType: 'docs',
+         crawlDepth: 2,
+         tags: [],
+         tagInput: '',
+         isLoading: false,
+         error: null,
+         selectedFile: null,
+         maxTags: 10,
+         
+         addTag() {
+             const tag = this.tagInput.trim().toLowerCase();
+             if (tag && !this.tags.includes(tag) && this.tags.length < this.maxTags) {
+                 this.tags.push(tag);
+                 this.tagInput = '';
+             }
+         },
+         removeTag(index) {
+             this.tags.splice(index, 1);
+         },
+         handleTagKeydown(e) {
+             if (e.key === 'Enter' || e.key === ',') {
+                 e.preventDefault();
+                 this.addTag();
+             } else if (e.key === 'Backspace' && !this.tagInput && this.tags.length) {
+                 this.tags.pop();
+             }
+         }
+     }">
     
     <!-- Backdrop -->
-    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" 
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" 
          @click="$dispatch('close-modal')"></div>
     
     <!-- Modal -->
-    <div class="relative w-full max-w-lg glass rounded-2xl shadow-2xl overflow-hidden">
+    <div class="relative w-full max-w-[92vw] sm:max-w-xl glass rounded-2xl glow-modal max-h-[85vh] overflow-hidden flex flex-col">
+        
         <!-- Header -->
-        <div class="p-6 border-b border-white/10">
+        <div class="p-6 border-b border-cyan-500/20">
             <div class="flex items-center justify-between">
-                <h2 class="text-xl font-bold">Add Knowledge</h2>
+                <div>
+                    <h2 class="text-lg sm:text-xl font-bold text-white">Add Knowledge</h2>
+                    <p class="text-xs sm:text-sm text-gray-400 mt-1">Crawl websites or upload documents to expand your knowledge base.</p>
+                </div>
                 <button @click="$dispatch('close-modal')" 
-                        class="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white">
+                        class="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
-            <p class="text-sm text-gray-400 mt-1">Crawl websites or upload documents</p>
+            
+            <!-- Mode Toggle -->
+            <div class="flex mt-4 p-1 rounded-xl bg-black/30 border border-white/10">
+                <button @click="mode = 'crawl'" 
+                        :class="mode === 'crawl' ? 'bg-cyan-500/20 text-cyan-400 glow-card-selected' : 'text-gray-400 hover:text-white'"
+                        class="flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-all">
+                    <i data-lucide="globe" class="w-4 h-4"></i>
+                    Crawl Website
+                </button>
+                <button @click="mode = 'upload'" 
+                        :class="mode === 'upload' ? 'bg-purple-500/20 text-purple-400' : 'text-gray-400 hover:text-white'"
+                        class="flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-all"
+                        style="box-shadow: mode === 'upload' ? '0 0 15px rgba(168, 85, 247, 0.3)' : 'none'">
+                    <i data-lucide="upload" class="w-4 h-4"></i>
+                    Upload Document
+                </button>
+            </div>
         </div>
         
-        <!-- Tabs -->
-        <div class="flex border-b border-white/10">
-            <button @click="activeTab = 'crawl'" 
-                    :class="activeTab === 'crawl' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-gray-400'"
-                    class="flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2">
-                <i data-lucide="globe" class="w-4 h-4"></i>
-                Crawl URL
-            </button>
-            <button @click="activeTab = 'upload'" 
-                    :class="activeTab === 'upload' ? 'border-purple-500 text-purple-400' : 'border-transparent text-gray-400'"
-                    class="flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2">
-                <i data-lucide="upload" class="w-4 h-4"></i>
-                Upload File
-            </button>
-        </div>
-        
-        <!-- Content -->
-        <div class="p-6">
+        <!-- Content (scrollable) -->
+        <div class="p-6 space-y-5 overflow-y-auto flex-1 pb-8">
+            
             <!-- Error Message -->
-            <div x-show="error" x-cloak class="mb-4 p-3 rounded-lg bg-red-500/20 border border-red-500/50 text-red-400 text-sm">
+            <div x-show="error" x-cloak class="p-3 rounded-lg bg-red-500/20 border border-red-500/50 text-red-400 text-sm">
                 <span x-text="error"></span>
             </div>
             
-            <!-- Crawl Tab -->
-            <form x-show="activeTab === 'crawl'" 
-                  @submit.prevent="submitCrawl"
-                  class="space-y-4">
+            <!-- === CRAWL MODE === -->
+            <form x-show="mode === 'crawl'" @submit.prevent="submitCrawl()" class="space-y-5">
                 
+                <!-- URL Input -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">Website URL</label>
+                    <label class="block text-sm font-medium text-gray-300 mb-3">Website URL</label>
                     <div class="relative">
-                        <i data-lucide="globe" class="w-5 h-5 text-cyan-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                        <svg class="absolute text-cyan-400 pointer-events-none" style="width: 20px; height: 20px; left: 16px; top: 50%; transform: translateY(-50%);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" stroke-width="2"></circle>
+                            <path stroke-width="2" d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                        </svg>
                         <input type="url" name="url" required
                                placeholder="https://docs.example.com"
-                               class="w-full pl-10 pr-4 py-3 rounded-xl glass-light border border-white/10 
-                                      focus:border-cyan-500/50 focus:outline-none text-white placeholder-gray-500">
+                               style="padding: 16px 16px 16px 48px; font-size: 15px;"
+                               class="w-full rounded-xl bg-black/30 border border-white/10 
+                                      glow-input text-white placeholder-gray-500">
                     </div>
                 </div>
                 
+                <!-- Knowledge Type - 3x2 grid -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">Title (optional)</label>
-                    <input type="text" name="title"
-                           placeholder="My Documentation"
-                           class="w-full px-4 py-3 rounded-xl glass-light border border-white/10 
-                                  focus:border-cyan-500/50 focus:outline-none text-white placeholder-gray-500">
+                    <label class="block text-xs sm:text-sm font-medium text-gray-300 mb-3">Knowledge Type</label>
+                    <div class="grid grid-cols-3" style="gap: 10px;">
+                        <button type="button" @click="knowledgeType = 'docs'"
+                                style="min-height: 56px; padding: 10px;"
+                                :class="knowledgeType === 'docs' ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400' : 'bg-black/30 border-white/10 text-gray-300'"
+                                class="rounded-lg border text-center cursor-pointer flex flex-col items-center justify-center gap-1">
+                            <svg style="width: 18px; height: 18px;" :class="knowledgeType === 'docs' ? 'text-cyan-400' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                            </svg>
+                            <span style="font-size: 12px; font-weight: 500;">Docs</span>
+                        </button>
+                        <button type="button" @click="knowledgeType = 'api'"
+                                style="min-height: 56px; padding: 10px;"
+                                :class="knowledgeType === 'api' ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400' : 'bg-black/30 border-white/10 text-gray-300'"
+                                class="rounded-lg border text-center cursor-pointer flex flex-col items-center justify-center gap-1">
+                            <svg style="width: 18px; height: 18px;" :class="knowledgeType === 'api' ? 'text-cyan-400' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                            </svg>
+                            <span style="font-size: 12px; font-weight: 500;">API</span>
+                        </button>
+                        <button type="button" @click="knowledgeType = 'guide'"
+                                style="min-height: 56px; padding: 10px;"
+                                :class="knowledgeType === 'guide' ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400' : 'bg-black/30 border-white/10 text-gray-300'"
+                                class="rounded-lg border text-center cursor-pointer flex flex-col items-center justify-center gap-1">
+                            <svg style="width: 18px; height: 18px;" :class="knowledgeType === 'guide' ? 'text-cyan-400' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                            </svg>
+                            <span style="font-size: 12px; font-weight: 500;">Guide</span>
+                        </button>
+                        <button type="button" @click="knowledgeType = 'policy'"
+                                style="min-height: 56px; padding: 10px;"
+                                :class="knowledgeType === 'policy' ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400' : 'bg-black/30 border-white/10 text-gray-300'"
+                                class="rounded-lg border text-center cursor-pointer flex flex-col items-center justify-center gap-1">
+                            <svg style="width: 18px; height: 18px;" :class="knowledgeType === 'policy' ? 'text-cyan-400' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                            </svg>
+                            <span style="font-size: 12px; font-weight: 500;">Policy</span>
+                        </button>
+                        <button type="button" @click="knowledgeType = 'wiki'"
+                                style="min-height: 56px; padding: 10px;"
+                                :class="knowledgeType === 'wiki' ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400' : 'bg-black/30 border-white/10 text-gray-300'"
+                                class="rounded-lg border text-center cursor-pointer flex flex-col items-center justify-center gap-1">
+                            <svg style="width: 18px; height: 18px;" :class="knowledgeType === 'wiki' ? 'text-cyan-400' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                            </svg>
+                            <span style="font-size: 12px; font-weight: 500;">Wiki</span>
+                        </button>
+                        <button type="button" @click="knowledgeType = 'other'"
+                                style="min-height: 56px; padding: 10px;"
+                                :class="knowledgeType === 'other' ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400' : 'bg-black/30 border-white/10 text-gray-300'"
+                                class="rounded-lg border text-center cursor-pointer flex flex-col items-center justify-center gap-1">
+                            <svg style="width: 18px; height: 18px;" :class="knowledgeType === 'other' ? 'text-cyan-400' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path>
+                            </svg>
+                            <span style="font-size: 12px; font-weight: 500;">Other</span>
+                        </button>
+                    </div>
+                    <input type="hidden" name="knowledge_type" :value="knowledgeType">
                 </div>
                 
-                <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">Crawl Depth</label>
-                    <select name="max_depth" 
-                            class="w-full px-4 py-3 rounded-xl glass-light border border-white/10 
-                                   focus:border-cyan-500/50 focus:outline-none text-white">
-                        <option value="0">Single page only</option>
-                        <option value="1">1 level deep</option>
-                        <option value="2" selected>2 levels deep</option>
-                        <option value="3">3 levels deep</option>
-                    </select>
+                <!-- Crawl Depth -->
+                <div x-data="{ showTooltip: false }">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-xs sm:text-sm font-medium text-gray-300 flex items-center gap-1">
+                            Crawl Depth
+                            <span class="text-gray-400 cursor-help relative hidden sm:inline" 
+                                  @mouseenter="showTooltip = true" 
+                                  @mouseleave="showTooltip = false"
+                                  @click="showTooltip = !showTooltip">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <!-- Tooltip -->
+                                <div x-show="showTooltip" x-cloak
+                                     x-transition:enter="transition ease-out duration-150"
+                                     x-transition:enter-start="opacity-0 translate-y-1"
+                                     x-transition:enter-end="opacity-100 translate-y-0"
+                                     class="absolute left-0 bottom-full mb-2 w-56 p-3 rounded-lg bg-slate-800 border border-cyan-500/30 shadow-xl text-xs text-gray-300 z-50">
+                                    <p class="font-medium text-white mb-1">What does depth mean?</p>
+                                    <ul class="space-y-1 text-gray-400">
+                                        <li><span class="text-cyan-400">1</span> – Start page only</li>
+                                        <li><span class="text-cyan-400">2</span> – Start + direct links</li>
+                                        <li><span class="text-cyan-400">3</span> – Deeper navigation</li>
+                                        <li><span class="text-cyan-400">5</span> – Full website crawl</li>
+                                    </ul>
+                                    <div class="absolute left-4 bottom-0 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-cyan-500/30"></div>
+                                </div>
+                            </span>
+                        </label>
+                    </div>
+                    <div class="flex gap-2">
+                        <template x-for="d in [1, 2, 3, 4, 5]" :key="d">
+                            <button type="button" @click="crawlDepth = d"
+                                    :class="crawlDepth === d ? 'depth-btn-selected' : 'depth-btn'"
+                                    class="flex-1 py-2.5 rounded-lg sm:rounded-xl text-center">
+                                <span class="text-base sm:text-lg font-bold" :class="crawlDepth === d ? 'text-cyan-400' : 'text-white'" x-text="d"></span>
+                                <span class="hidden sm:block text-xs" :class="crawlDepth === d ? 'text-cyan-400/70' : 'text-gray-500'" x-text="d === 1 ? 'level' : 'levels'"></span>
+                            </button>
+                        </template>
+                    </div>
+                    <input type="hidden" name="max_depth" :value="crawlDepth">
                 </div>
                 
+                <!-- Tags -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">Tags (optional)</label>
-                    <input type="text" name="tags"
-                           placeholder="docs, python, api (comma-separated)"
-                           class="w-full px-4 py-3 rounded-xl glass-light border border-white/10 
-                                  focus:border-cyan-500/50 focus:outline-none text-white placeholder-gray-500">
-                    <p class="text-xs text-gray-500 mt-1">Separate multiple tags with commas</p>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-xs sm:text-sm font-medium text-gray-300">Tags</label>
+                        <span class="text-[10px] sm:text-xs text-gray-500" x-text="`${tags.length}/${maxTags} tags`"></span>
+                    </div>
+                    
+                    <!-- Tag Chips -->
+                    <div class="flex flex-wrap gap-1.5 sm:gap-2 mb-2" x-show="tags.length > 0">
+                        <template x-for="(tag, index) in tags" :key="index">
+                            <span class="tag-chip px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm text-cyan-300 flex items-center gap-1.5 sm:gap-2 group">
+                                <span x-text="tag"></span>
+                                <button type="button" @click.stop="removeTag(index)" 
+                                        class="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded bg-white/10 hover:bg-red-500/50 flex items-center justify-center transition-colors">
+                                    <svg class="w-2 h-2 sm:w-2.5 sm:h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </span>
+                        </template>
+                    </div>
+                    
+                    <!-- Tag Input -->
+                    <div class="relative">
+                        <input type="text" x-model="tagInput" 
+                               @keydown="handleTagKeydown($event)"
+                               @blur="addTag()"
+                               :disabled="tags.length >= maxTags"
+                               placeholder="Add tags (api, docs, guide...)"
+                               style="padding: 16px; font-size: 15px;"
+                               class="w-full rounded-xl bg-black/30 border border-white/10 
+                                      glow-input text-white placeholder-gray-500">
+                    </div>
+                    <p class="text-gray-500" style="font-size: 11px; margin-top: 8px; margin-bottom: 16px;">Press Enter or comma to add tags • Backspace to remove last tag</p>
+                    <input type="hidden" name="tags" :value="tags.join(',')">
                 </div>
                 
+                <!-- Submit Button -->
                 <button type="submit" :disabled="isLoading"
-                        class="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 
-                               hover:from-cyan-600 hover:to-cyan-700 text-white font-medium
-                               flex items-center justify-center gap-2 disabled:opacity-50">
+                        style="padding: 18px 24px; font-size: 16px;"
+                        class="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 
+                               text-white font-semibold glow-btn flex items-center justify-center gap-2 
+                               disabled:opacity-50 disabled:cursor-not-allowed">
                     <template x-if="!isLoading">
                         <span class="flex items-center gap-2">
-                            <i data-lucide="play" class="w-5 h-5"></i>
+                            <i data-lucide="globe" class="w-4 h-4 sm:w-5 sm:h-5"></i>
                             Start Crawling
                         </span>
                     </template>
@@ -107,52 +259,87 @@
                 </button>
             </form>
             
-            <!-- Upload Tab -->
-            <form x-show="activeTab === 'upload'" x-cloak
-                  @submit.prevent="submitUpload"
-                  enctype="multipart/form-data"
-                  class="space-y-4">
+            <!-- === UPLOAD MODE === -->
+            <form x-show="mode === 'upload'" x-cloak @submit.prevent="submitUpload()" enctype="multipart/form-data">
                 
-                <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">Document File</label>
-                    <div class="relative border-2 border-dashed border-white/20 rounded-xl p-6 
-                                hover:border-purple-500/50 transition-colors text-center cursor-pointer"
+                <!-- File Drop Zone -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 14px; font-weight: 500; color: #d1d5db; margin-bottom: 10px;">Document File</label>
+                    <div class="relative rounded-xl text-center cursor-pointer transition-all"
+                         :style="'border: 2px dashed ' + (selectedFile ? 'rgba(168,85,247,0.5)' : 'rgba(255,255,255,0.2)') + '; padding: 24px 16px; background: ' + (selectedFile ? 'rgba(168,85,247,0.1)' : 'transparent') + ';'"
                          @click="$refs.fileInput.click()"
-                         @dragover.prevent="$el.classList.add('border-purple-500')"
-                         @dragleave.prevent="$el.classList.remove('border-purple-500')"
-                         @drop.prevent="handleDrop($event)">
-                        <i data-lucide="upload" class="w-8 h-8 text-purple-400 mx-auto mb-2"></i>
-                        <p class="text-sm text-gray-400">Click to browse or drag & drop</p>
-                        <p class="text-xs text-gray-500 mt-1">
-                            PDF, Word, Excel, PowerPoint, CSV, JSON, Markdown, TXT
-                        </p>
+                         @dragover.prevent="$el.style.borderColor = 'rgba(168,85,247,0.8)'; $el.style.background = 'rgba(168,85,247,0.1)';"
+                         @dragleave.prevent="$el.style.borderColor = selectedFile ? 'rgba(168,85,247,0.5)' : 'rgba(255,255,255,0.2)'; $el.style.background = selectedFile ? 'rgba(168,85,247,0.1)' : 'transparent';"
+                         @drop.prevent="$refs.fileInput.files = $event.dataTransfer.files; selectedFile = $event.dataTransfer.files[0]?.name">
+                        
+                        <div x-show="!selectedFile">
+                            <svg style="width: 40px; height: 40px; margin: 0 auto 12px;" class="text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                            <p class="text-gray-300" style="font-size: 15px;">Click to browse or drag & drop</p>
+                            <p class="text-gray-500" style="font-size: 12px; margin-top: 8px;">PDF, Word, Excel, PowerPoint, CSV, JSON, Markdown, TXT</p>
+                        </div>
+                        
+                        <div x-show="selectedFile" x-cloak>
+                            <svg style="width: 40px; height: 40px; margin: 0 auto 12px;" class="text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <p class="text-purple-300 font-medium" x-text="selectedFile"></p>
+                            <p class="text-gray-500" style="font-size: 12px; margin-top: 8px;">Click to change file</p>
+                        </div>
+                        
                         <input type="file" name="file" x-ref="fileInput" class="hidden"
                                accept=".pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.csv,.tsv,.json,.yaml,.yml,.txt,.md,.markdown,.rst,.html,.htm"
-                               @change="fileSelected($event)">
+                               @change="selectedFile = $event.target.files[0]?.name">
                     </div>
-                    <p x-show="selectedFile" class="mt-2 text-sm text-purple-400" x-text="selectedFile"></p>
                 </div>
                 
-                <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">Title (optional)</label>
+                <!-- Title -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 14px; font-weight: 500; color: #d1d5db; margin-bottom: 10px;">Title (optional)</label>
                     <input type="text" name="title"
                            placeholder="Document title"
-                           class="w-full px-4 py-3 rounded-xl glass-light border border-white/10 
-                                  focus:border-purple-500/50 focus:outline-none text-white placeholder-gray-500">
+                           style="padding: 16px; font-size: 15px; width: 100%; border-radius: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: white;"
+                           class="glow-input placeholder-gray-500">
                 </div>
                 
-                <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">Tags (optional)</label>
-                    <input type="text" name="tags"
-                           placeholder="docs, manual, internal (comma-separated)"
-                           class="w-full px-4 py-3 rounded-xl glass-light border border-white/10 
-                                  focus:border-purple-500/50 focus:outline-none text-white placeholder-gray-500">
+                <!-- Tags (same as crawl) -->
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                        <label style="font-size: 14px; font-weight: 500; color: #d1d5db;">Tags</label>
+                        <span style="font-size: 12px; color: #6b7280;" x-text="`${tags.length}/${maxTags} tags used`"></span>
+                    </div>
+                    <div class="flex flex-wrap gap-2 mb-2" x-show="tags.length > 0">
+                        <template x-for="(tag, index) in tags" :key="index">
+                            <span class="tag-chip px-3 py-1.5 rounded-lg text-sm text-cyan-300 flex items-center gap-2 group">
+                                <span x-text="tag"></span>
+                                <button type="button" @click.stop="removeTag(index)" 
+                                        class="w-4 h-4 rounded bg-white/10 hover:bg-red-500/50 flex items-center justify-center transition-colors">
+                                    <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </span>
+                        </template>
+                    </div>
+                    <div class="relative">
+                        <input type="text" x-model="tagInput" 
+                               @keydown="handleTagKeydown($event)"
+                               @blur="addTag()"
+                               :disabled="tags.length >= maxTags"
+                               placeholder="Add tags (api, docs, guide...)"
+                               style="padding: 16px; font-size: 15px; width: 100%; border-radius: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: white;"
+                               class="glow-input placeholder-gray-500">
+                    </div>
+                    <p style="font-size: 11px; color: #6b7280; margin-top: 10px;">Press Enter or comma to add tags • Backspace to remove</p>
+                    <input type="hidden" name="tags" :value="tags.join(',')">
                 </div>
                 
-                <button type="submit" :disabled="isLoading"
-                        class="w-full py-3 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 
-                               hover:from-purple-600 hover:to-purple-700 text-white font-medium
-                               flex items-center justify-center gap-2 disabled:opacity-50">
+                <!-- Submit Button -->
+                <button type="submit" :disabled="isLoading || !selectedFile"
+                        style="margin-top: 24px; padding: 18px 24px; font-size: 16px; width: 100%; border-radius: 12px; background: linear-gradient(to right, #a855f7, #9333ea); color: white; font-weight: 600;"
+                        class="glow-btn-purple flex items-center justify-center gap-2 
+                               disabled:opacity-50 disabled:cursor-not-allowed">
                     <template x-if="!isLoading">
                         <span class="flex items-center gap-2">
                             <i data-lucide="upload" class="w-5 h-5"></i>
@@ -167,18 +354,11 @@
                     </template>
                 </button>
             </form>
-            
-            <!-- Job Progress -->
-            <div x-show="jobId" x-cloak class="mt-4" id="job-progress-container"
-                 hx-get="" hx-trigger="none">
-                <!-- Will be populated by HTMX -->
-            </div>
         </div>
     </div>
 </div>
 
 <script>
-    // Modal functions
     function submitCrawl() {
         const form = event.target;
         const formData = new FormData(form);
@@ -192,14 +372,23 @@
         })
         .then(r => r.json())
         .then(data => {
+            if (data.error) {
+                this.error = data.error;
+                this.isLoading = false;
+                return;
+            }
             if (data.job_id) {
-                this.jobId = data.job_id;
-                pollJob(data.job_id, this);
+                if (window.showJobToast) {
+                    window.showJobToast(data.job_id, 'crawl', formData.get('url'));
+                }
+                this.isLoading = false;
+                this.$dispatch('close-modal');
             }
         })
         .catch(e => {
             this.error = e.message;
             this.isLoading = false;
+            if (window.showToast) window.showToast('error', 'Crawl failed', e.message);
         });
     }
     
@@ -216,98 +405,24 @@
         })
         .then(r => r.json())
         .then(data => {
+            if (data.error) {
+                this.error = data.error;
+                this.isLoading = false;
+                if (window.showToast) window.showToast('error', 'Upload failed', data.error);
+                return;
+            }
             if (data.job_id) {
-                this.jobId = data.job_id;
-                pollJob(data.job_id, this);
+                if (window.showJobToast) {
+                    window.showJobToast(data.job_id, 'upload', this.selectedFile);
+                }
+                this.isLoading = false;
+                this.$dispatch('close-modal');
             }
         })
         .catch(e => {
             this.error = e.message;
             this.isLoading = false;
+            if (window.showToast) window.showToast('error', 'Upload failed', e.message);
         });
-    }
-    
-    function fileSelected(event) {
-        const file = event.target.files[0];
-        if (file) {
-            this.selectedFile = file.name;
-        }
-    }
-    
-    function handleDrop(event) {
-        const file = event.dataTransfer.files[0];
-        if (file) {
-            this.$refs.fileInput.files = event.dataTransfer.files;
-            this.selectedFile = file.name;
-        }
-    }
-    
-    function pollJob(jobId, ctx) {
-        // Use the global toast instead of inline progress
-        if (window.showJobToast) {
-            window.showJobToast(jobId, ctx.activeTab, ctx.activeTab === 'upload' ? ctx.selectedFile : document.querySelector('[name="url"]')?.value);
-        }
-        
-        // Close modal immediately
-        ctx.isLoading = false;
-        ctx.$dispatch('close-modal');
-        
-        // Poll for completion to refresh page
-        const checkJob = () => {
-            fetch(`/api/jobs/${jobId}`)
-                .then(r => r.json())
-                .then(job => {
-                    if (job.status === 'completed') {
-                        // Refresh the page if on sources
-                        if (window.location.pathname === '/sources') {
-                            setTimeout(() => window.location.reload(), 1000);
-                        }
-                    } else if (job.status === 'pending' || job.status === 'running') {
-                        setTimeout(checkJob, 2000);
-                    }
-                });
-        };
-        setTimeout(checkJob, 2000);
-    }
-    
-    function renderJobProgress(job) {
-        const statusColor = {
-            'pending': 'text-yellow-400',
-            'running': 'text-cyan-400',
-            'completed': 'text-green-400',
-            'error': 'text-red-400',
-        }[job.status] || 'text-gray-400';
-        
-        const statusIcon = {
-            'pending': 'clock',
-            'running': 'loader-2',
-            'completed': 'check-circle',
-            'error': 'x-circle',
-        }[job.status] || 'circle';
-        
-        let resultHtml = '';
-        if (job.result) {
-            resultHtml = `
-                <div class="mt-2 text-xs text-gray-400">
-                    ${job.result.pages_crawled ? `${job.result.pages_crawled} pages` : ''}
-                    ${job.result.chunks_created ? ` • ${job.result.chunks_created} chunks` : ''}
-                    ${job.result.embeddings_generated ? ` • ${job.result.embeddings_generated} embeddings` : ''}
-                </div>
-            `;
-        }
-        
-        return `
-            <div class="p-4 rounded-xl glass-light border border-white/10">
-                <div class="flex items-center gap-3">
-                    <i data-lucide="${statusIcon}" class="w-5 h-5 ${statusColor} ${job.status === 'running' ? 'animate-spin' : ''}"></i>
-                    <div class="flex-1">
-                        <p class="text-sm font-medium ${statusColor}">${job.status.charAt(0).toUpperCase() + job.status.slice(1)}</p>
-                        <p class="text-xs text-gray-500">${job.current || job.url || job.filename || ''}</p>
-                    </div>
-                    ${job.total > 0 ? `<span class="text-xs text-gray-400">${job.progress}/${job.total}</span>` : ''}
-                </div>
-                ${resultHtml}
-            </div>
-        `;
     }
 </script>

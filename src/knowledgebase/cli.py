@@ -10,6 +10,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskPr
 from knowledgebase.config import get_config
 from knowledgebase.client import KnowledgeBase
 from knowledgebase.embeddings import get_embedding, test_ollama_connection
+from knowledgebase.embeddings_optimized import embed_chunks_parallel
 from knowledgebase.search import search, search_hybrid, format_results
 
 console = Console()
@@ -91,7 +92,9 @@ def find(query: str, limit: int, threshold: float, hybrid: bool):
 
 @main.command()
 @click.option("--batch-size", default=50, help="Chunks per batch")
-def embed(batch_size: int):
+@click.option("--workers", "-w", default=4, help="Parallel workers (default: 4)")
+@click.option("--sequential", is_flag=True, help="Use sequential processing (slower)")
+def embed(batch_size: int, workers: int, sequential: bool):
     """Generate embeddings for chunks that don't have them."""
     config = get_config()
     kb = KnowledgeBase()
@@ -107,9 +110,11 @@ def embed(batch_size: int):
         console.print("[green]✅ All chunks have embeddings![/green]")
         return
     
-    console.print(f"\n🧠 Generating embeddings for {total_without} chunks...\n")
+    mode = "sequential" if sequential else f"parallel ({workers} workers)"
+    console.print(f"\n🧠 Generating embeddings for {total_without} chunks... [{mode}]\n")
     
     total_done = 0
+    total_errors = 0
     start_time = time.time()
     
     with Progress(
@@ -126,21 +131,47 @@ def embed(batch_size: int):
             if not chunks:
                 break
             
-            for chunk in chunks:
-                embedding = get_embedding(chunk.content)
-                if embedding:
-                    kb.update_chunk_embedding(chunk.id, embedding)
-                    total_done += 1
+            if sequential:
+                # Original sequential processing
+                for chunk in chunks:
+                    embedding = get_embedding(chunk.content)
+                    if embedding:
+                        kb.update_chunk_embedding(chunk.id, embedding)
+                        total_done += 1
+                    else:
+                        total_errors += 1
+                    progress.update(task, advance=1)
+            else:
+                # Parallel processing
+                chunk_dicts = [{'id': c.id, 'content': c.content} for c in chunks]
                 
-                progress.update(task, advance=1)
+                def update_callback(chunk_id, embedding):
+                    kb.update_chunk_embedding(chunk_id, embedding)
                 
-                # Show rate
-                elapsed = time.time() - start_time
-                rate = total_done / elapsed if elapsed > 0 else 0
-                progress.update(task, description=f"Embedding... ({rate:.1f}/s)")
+                def progress_callback(done, total, text):
+                    progress.update(task, advance=1)
+                    elapsed = time.time() - start_time
+                    rate = (total_done + done) / elapsed if elapsed > 0 else 0
+                    progress.update(task, description=f"Embedding... ({rate:.1f}/s)")
+                
+                success, errors = embed_chunks_parallel(
+                    chunk_dicts,
+                    update_callback,
+                    max_workers=workers,
+                    on_progress=progress_callback,
+                )
+                total_done += success
+                total_errors += errors
+            
+            # Update rate display
+            elapsed = time.time() - start_time
+            rate = total_done / elapsed if elapsed > 0 else 0
+            progress.update(task, description=f"Embedding... ({rate:.1f}/s)")
     
     elapsed = time.time() - start_time
-    console.print(f"\n[green]✅ Done![/green] {total_done} embeddings in {elapsed:.0f}s")
+    console.print(f"\n[green]✅ Done![/green] {total_done} embeddings in {elapsed:.0f}s ({total_done/elapsed:.1f}/s)")
+    if total_errors:
+        console.print(f"[yellow]⚠️ {total_errors} chunks failed[/yellow]")
 
 
 @main.command()
@@ -168,6 +199,46 @@ def sources():
         )
     
     console.print(table)
+
+
+@main.command("watch")
+@click.option("--inbox", default=None, help="Inbox folder path (default: ~/clawd/kb-inbox)")
+@click.option("--once", is_flag=True, help="Index once and exit (no watching)")
+def watch_inbox(inbox: str, once: bool):
+    """Watch a folder for new documents and auto-index them."""
+    try:
+        from knowledgebase.auto_index import watch_inbox as do_watch, index_inbox_once, DEFAULT_INBOX
+    except ImportError as e:
+        console.print(f"[red]❌ Auto-index dependencies missing: {e}[/red]")
+        console.print("Install with: [cyan]uv pip install watchdog[/cyan]")
+        sys.exit(1)
+    
+    from pathlib import Path
+    inbox_path = Path(inbox) if inbox else DEFAULT_INBOX
+    
+    def on_indexed(path, chunks):
+        console.print(f"[green]✅[/green] Indexed: [cyan]{path.name}[/cyan] ({chunks} chunks)")
+    
+    def on_error(path, e):
+        console.print(f"[red]❌[/red] Error: [yellow]{path.name}[/yellow]: {e}")
+    
+    if once:
+        console.print(f"\n📂 Indexing files in [cyan]{inbox_path}[/cyan]...\n")
+        indexed, failed = index_inbox_once(inbox_path, on_indexed, on_error)
+        console.print(f"\n[green]✅ Done![/green] {indexed} indexed, {failed} failed")
+    else:
+        console.print(f"\n👀 Watching [cyan]{inbox_path}[/cyan] for new documents...")
+        console.print("   Supported: PDF, DOCX, TXT, MD, HTML, EPUB")
+        console.print("   Press Ctrl+C to stop\n")
+        
+        observer = do_watch(inbox_path, on_indexed, on_error)
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            observer.stop()
+            observer.join()
+            console.print("\n[yellow]Stopped.[/yellow]")
 
 
 @main.command()

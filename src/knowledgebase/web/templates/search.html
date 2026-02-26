@@ -3,32 +3,31 @@
 {% block title %}Search - OpenClaw Knowledgebase{% endblock %}
 
 {% block content %}
-<div class="p-6 space-y-6">
+<div class="p-4 md:p-6 space-y-4 md:space-y-6">
     <!-- Header -->
     <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center shadow-lg shadow-cyan-500/30">
             <i data-lucide="search" class="w-6 h-6 text-white"></i>
         </div>
         <div>
-            <h1 class="text-2xl font-bold">Semantic Search</h1>
-            <p class="text-gray-400">Search your knowledge base with AI</p>
+            <h1 class="text-xl md:text-2xl font-bold">Semantic Search</h1>
+            <p class="text-gray-400 text-sm">Search your knowledge base with AI</p>
         </div>
     </div>
     
     <!-- Search Form -->
-    <div class="glass rounded-xl p-6 glow-pulse">
+    <div class="glass rounded-2xl p-4 md:p-6 glow-card glow-card-cyan">
         <form id="search-form" class="space-y-4">
             <div class="relative">
                 <input type="text" name="q" id="search-input" value="{{ query }}"
                     placeholder="Ask anything... e.g., 'How do I create an automation in Home Assistant?'"
-                    class="w-full px-4 py-4 pl-12 text-lg rounded-xl glass-light border border-white/10 
-                           focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20
-                           placeholder-gray-500 text-white"
+                    class="w-full px-4 py-3 md:py-4 pl-12 text-base md:text-lg rounded-xl glow-input text-white placeholder-gray-500"
+                    style="background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.1);"
                     hx-get="/htmx/search-results"
                     hx-trigger="keyup changed delay:300ms"
                     hx-target="#results"
-                    hx-include="[name='hybrid'], [name='limit']">
-                <i data-lucide="sparkles" class="w-6 h-6 text-cyan-400 absolute left-4 top-1/2 -translate-y-1/2"></i>
+                    hx-include="[name='hybrid'], [name='limit'], [name='threshold']">
+                <i data-lucide="sparkles" class="w-5 h-5 md:w-6 md:h-6 text-cyan-400 absolute left-4 top-1/2 -translate-y-1/2"></i>
                 
                 <!-- Loading indicator -->
                 <div class="htmx-indicator absolute right-4 top-1/2 -translate-y-1/2">
@@ -36,46 +35,51 @@
                 </div>
             </div>
             
-            <!-- Options -->
-            <div class="flex items-center gap-6">
-                <label class="flex items-center gap-2 cursor-pointer">
+            <!-- Filter Options -->
+            <div class="flex flex-wrap items-center gap-3 md:gap-4">
+                <!-- Hybrid Toggle -->
+                <label class="flex items-center gap-2 cursor-pointer glass-light rounded-lg px-3 py-2 border border-white/10 hover:border-cyan-500/30 transition-colors">
                     <input type="checkbox" name="hybrid" id="hybrid-toggle" {% if hybrid %}checked{% endif %}
-                        class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-0"
+                        class="w-4 h-4 rounded border border-white/20 bg-white/10 text-cyan-500 focus:ring-cyan-500/50 focus:ring-offset-0 checked:bg-cyan-500/80 checked:border-cyan-400/50"
                         hx-get="/htmx/search-results"
                         hx-trigger="change"
                         hx-target="#results"
-                        hx-include="#search-input, [name='limit']">
-                    <span class="text-sm text-gray-300">Hybrid Search</span>
-                    <span class="text-xs text-gray-500">(semantic + keyword)</span>
+                        hx-include="#search-input, [name='limit'], [name='threshold']">
+                    <span class="text-sm text-gray-300">Hybrid</span>
+                    <span class="text-xs text-gray-500 hidden sm:inline">(semantic + keyword)</span>
                 </label>
                 
-                <div class="flex items-center gap-2">
+                <!-- Result Count -->
+                <div class="flex items-center gap-2 glass-light rounded-lg px-3 py-2 border border-white/10">
                     <label class="text-sm text-gray-400">Results:</label>
                     <select name="limit" 
-                        class="px-3 py-1.5 rounded-lg glass-light border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-500/50"
+                        class="bg-transparent text-sm text-white focus:outline-none cursor-pointer"
+                        style="background: transparent;"
                         hx-get="/htmx/search-results"
                         hx-trigger="change"
                         hx-target="#results"
-                        hx-include="#search-input, #hybrid-toggle">
-                        <option value="5" {% if limit == 5 %}selected{% endif %}>5</option>
-                        <option value="10" {% if limit == 10 %}selected{% endif %}>10</option>
-                        <option value="20" {% if limit == 20 %}selected{% endif %}>20</option>
-                        <option value="50" {% if limit == 50 %}selected{% endif %}>50</option>
+                        hx-include="#search-input, #hybrid-toggle, [name='threshold']">
+                        <option value="5" {% if limit == 5 %}selected{% endif %} class="bg-gray-900">5</option>
+                        <option value="10" {% if limit == 10 %}selected{% endif %} class="bg-gray-900">10</option>
+                        <option value="20" {% if limit == 20 %}selected{% endif %} class="bg-gray-900">20</option>
+                        <option value="50" {% if limit == 50 %}selected{% endif %} class="bg-gray-900">50</option>
                     </select>
                 </div>
                 
-                <div class="flex items-center gap-2">
+                <!-- Min Score -->
+                <div class="flex items-center gap-2 glass-light rounded-lg px-3 py-2 border border-white/10">
                     <label class="text-sm text-gray-400">Min Score:</label>
                     <select name="threshold" id="threshold-select"
-                        class="px-3 py-1.5 rounded-lg glass-light border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-500/50"
+                        class="bg-transparent text-sm text-white focus:outline-none cursor-pointer"
+                        style="background: transparent;"
                         hx-get="/htmx/search-results"
                         hx-trigger="change"
                         hx-target="#results"
                         hx-include="#search-input, #hybrid-toggle, [name='limit']">
-                        <option value="0.3">30%</option>
-                        <option value="0.5" selected>50%</option>
-                        <option value="0.6">60%</option>
-                        <option value="0.7">70%</option>
+                        <option value="0.3" class="bg-gray-900">30%</option>
+                        <option value="0.5" selected class="bg-gray-900">50%</option>
+                        <option value="0.6" class="bg-gray-900">60%</option>
+                        <option value="0.7" class="bg-gray-900">70%</option>
                     </select>
                 </div>
             </div>
@@ -84,22 +88,22 @@
     
     <!-- Results Header -->
     {% if query and results %}
-    <div class="flex items-center justify-between">
-        <p class="text-sm text-gray-400">{{ results|length }} results for "{{ query }}"</p>
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+        <p class="text-sm text-gray-400">{{ results|length }} results for "<span class="text-cyan-400">{{ query }}</span>"</p>
         
         <!-- Export Buttons -->
         <div class="flex items-center gap-2">
             <span class="text-xs text-gray-500">Export:</span>
             <a href="/api/export/search?q={{ query }}&format=json&limit=50&hybrid={{ hybrid }}" 
-               class="px-2 py-1 text-xs rounded bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white">
+               class="px-2.5 py-1 text-xs rounded-lg glass-light border border-white/10 text-gray-400 hover:text-cyan-400 hover:border-cyan-500/30 transition-colors">
                 JSON
             </a>
             <a href="/api/export/search?q={{ query }}&format=markdown&limit=50&hybrid={{ hybrid }}" 
-               class="px-2 py-1 text-xs rounded bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white">
+               class="px-2.5 py-1 text-xs rounded-lg glass-light border border-white/10 text-gray-400 hover:text-cyan-400 hover:border-cyan-500/30 transition-colors">
                 Markdown
             </a>
             <a href="/api/export/search?q={{ query }}&format=csv&limit=50&hybrid={{ hybrid }}" 
-               class="px-2 py-1 text-xs rounded bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white">
+               class="px-2.5 py-1 text-xs rounded-lg glass-light border border-white/10 text-gray-400 hover:text-cyan-400 hover:border-cyan-500/30 transition-colors">
                 CSV
             </a>
         </div>
@@ -111,10 +115,26 @@
         {% if query %}
             {% include "partials/search_results.html" %}
         {% else %}
-        <div class="text-center py-16">
-            <i data-lucide="search" class="w-16 h-16 text-gray-600 mx-auto mb-4"></i>
-            <p class="text-gray-500">Enter a query to search your knowledge base</p>
-            <p class="text-gray-600 text-sm mt-2">Try questions like "How do I..." or technical terms</p>
+        <div class="text-center py-16 glass rounded-2xl glow-card">
+            <div class="w-16 h-16 rounded-2xl bg-cyan-500/10 flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="search" class="w-8 h-8 text-cyan-400/50"></i>
+            </div>
+            <p class="text-gray-300 font-medium">Enter a query to search your knowledge base</p>
+            <p class="text-gray-500 text-sm mt-2">Try questions like "How do I..." or technical terms</p>
+            <div class="flex flex-wrap justify-center gap-2 mt-6">
+                <button onclick="document.getElementById('search-input').value='How to configure'; document.getElementById('search-input').dispatchEvent(new Event('keyup'))" 
+                        class="px-3 py-1.5 text-xs rounded-lg glass-light border border-white/10 text-gray-400 hover:text-cyan-400 hover:border-cyan-500/30 transition-colors cursor-pointer">
+                    "How to configure..."
+                </button>
+                <button onclick="document.getElementById('search-input').value='API documentation'; document.getElementById('search-input').dispatchEvent(new Event('keyup'))" 
+                        class="px-3 py-1.5 text-xs rounded-lg glass-light border border-white/10 text-gray-400 hover:text-cyan-400 hover:border-cyan-500/30 transition-colors cursor-pointer">
+                    "API documentation"
+                </button>
+                <button onclick="document.getElementById('search-input').value='troubleshooting'; document.getElementById('search-input').dispatchEvent(new Event('keyup'))" 
+                        class="px-3 py-1.5 text-xs rounded-lg glass-light border border-white/10 text-gray-400 hover:text-cyan-400 hover:border-cyan-500/30 transition-colors cursor-pointer">
+                    "troubleshooting"
+                </button>
+            </div>
         </div>
         {% endif %}
     </div>

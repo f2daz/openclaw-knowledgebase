@@ -15,6 +15,13 @@ try:
 except ImportError:
     HAS_DOCLING = False
 
+# Lightweight PDF fallback
+try:
+    from pypdf import PdfReader
+    HAS_PYPDF = True
+except ImportError:
+    HAS_PYPDF = False
+
 
 @dataclass
 class ParsedDocument:
@@ -167,6 +174,50 @@ def parse_json(path: Path) -> ParsedDocument:
         )
 
 
+def parse_pdf_with_pypdf(path: Path) -> ParsedDocument | None:
+    """Parse a PDF using pypdf (lightweight fallback)."""
+    if not HAS_PYPDF:
+        return None
+    
+    try:
+        reader = PdfReader(str(path))
+        
+        # Extract text from all pages
+        text_parts = []
+        for i, page in enumerate(reader.pages):
+            page_text = page.extract_text()
+            if page_text:
+                text_parts.append(f"## Page {i + 1}\n\n{page_text}")
+        
+        content = "\n\n".join(text_parts) if text_parts else "(No text extracted)"
+        
+        # Try to get title from metadata
+        title = None
+        if reader.metadata:
+            title = reader.metadata.get("/Title") or reader.metadata.get("title")
+        
+        return ParsedDocument(
+            path=str(path),
+            title=str(title) if title else path.stem,
+            content=content,
+            format="pdf",
+            metadata={
+                "filename": path.name,
+                "pages": len(reader.pages),
+                "size_bytes": path.stat().st_size,
+                "parser": "pypdf",
+            },
+        )
+    except Exception as e:
+        return ParsedDocument(
+            path=str(path),
+            title=path.stem,
+            content=f"Error parsing PDF: {e}",
+            format="pdf",
+            metadata={"filename": path.name, "error": str(e)},
+        )
+
+
 def parse_with_docling(path: Path) -> ParsedDocument | None:
     """Parse a document using Docling (PDF, DOCX, XLSX, PPTX, HTML)."""
     if not HAS_DOCLING:
@@ -263,15 +314,22 @@ def parse_document(path: str | Path) -> ParsedDocument | None:
     
     # Docling formats
     if suffix in DOCLING_FORMATS:
-        if not HAS_DOCLING:
-            # Fallback: try to read as text for HTML
-            if suffix in {".html", ".htm"}:
-                try:
-                    return parse_plain_text(path)
-                except:
-                    pass
-            return None
-        return parse_with_docling(path)
+        # Try Docling first (best quality)
+        if HAS_DOCLING:
+            return parse_with_docling(path)
+        
+        # Fallback for PDFs: use pypdf
+        if suffix == ".pdf" and HAS_PYPDF:
+            return parse_pdf_with_pypdf(path)
+        
+        # Fallback: try to read as text for HTML
+        if suffix in {".html", ".htm"}:
+            try:
+                return parse_plain_text(path)
+            except:
+                pass
+        
+        return None
     
     # Unknown format - try plain text
     try:

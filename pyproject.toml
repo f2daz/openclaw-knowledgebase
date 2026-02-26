@@ -39,8 +39,11 @@ web = [
     "jinja2>=3.1.0",
     "python-multipart>=0.0.6",
 ]
+autoindex = [
+    "watchdog>=4.0.0",
+]
 all = [
-    "openclaw-knowledgebase[docling,crawl,web]",
+    "openclaw-knowledgebase[docling,crawl,web,autoindex]",
 ]
 dev = [
     "pytest>=8.0.0",

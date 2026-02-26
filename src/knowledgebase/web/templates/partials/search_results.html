@@ -6,44 +6,46 @@
     </p>
     
     {% for result in results %}
-    <div class="glass rounded-xl p-4 hover:bg-white/5 transition-colors edge-cyan">
+    <div class="glass rounded-2xl p-4 md:p-5 glow-card transition-all group">
         <!-- Header -->
         <div class="flex items-start justify-between mb-3">
-            <div class="flex-1">
-                <div class="flex items-center gap-2 mb-1">
+            <div class="flex-1 min-w-0">
+                <div class="flex flex-wrap items-center gap-2 mb-2">
                     <!-- Source Type Badge -->
-                    <span class="text-xs px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400">
+                    <span class="text-xs px-2 py-0.5 rounded-full 
+                        {% if result.source_type == 'document' %}bg-purple-500/20 text-purple-400{% else %}bg-cyan-500/20 text-cyan-400{% endif %}">
                         {{ result.source_type or 'web' }}
                     </span>
                     
                     <!-- Similarity Score -->
-                    <span class="text-xs px-2 py-0.5 rounded-full 
-                        {% if result.similarity >= 0.7 %}bg-green-500/20 text-green-400
-                        {% elif result.similarity >= 0.5 %}bg-yellow-500/20 text-yellow-400
-                        {% else %}bg-gray-500/20 text-gray-400{% endif %}">
+                    <span class="text-xs px-2.5 py-0.5 rounded-full font-medium
+                        {% if result.similarity >= 0.7 %}bg-green-500/15 text-green-400 border border-green-500/20
+                        {% elif result.similarity >= 0.5 %}bg-yellow-500/15 text-yellow-400 border border-yellow-500/20
+                        {% else %}bg-gray-500/15 text-gray-400 border border-gray-500/20{% endif %}">
                         {{ "%.0f"|format(result.similarity * 100) }}% match
                     </span>
+                    
+                    <!-- Chunk Number -->
+                    <span class="text-xs text-gray-600 ml-auto">Chunk #{{ result.chunk_number }}</span>
                 </div>
                 
                 <!-- Title -->
-                <h3 class="font-semibold text-white">{{ result.title or 'Untitled' }}</h3>
+                <h3 class="font-semibold text-white group-hover:text-cyan-400 transition-colors">{{ result.title or 'Untitled' }}</h3>
                 
                 <!-- URL -->
                 {% if result.url %}
                 <a href="{{ result.url }}" target="_blank" 
-                   class="text-xs text-gray-500 hover:text-cyan-400 flex items-center gap-1 mt-1 truncate max-w-lg">
-                    <i data-lucide="external-link" class="w-3 h-3"></i>
-                    {{ result.url }}
+                   class="text-xs text-gray-500 hover:text-cyan-400 flex items-center gap-1 mt-1 truncate max-w-lg transition-colors">
+                    <i data-lucide="external-link" class="w-3 h-3 flex-shrink-0"></i>
+                    <span class="truncate">{{ result.url }}</span>
                 </a>
                 {% endif %}
             </div>
-            
-            <!-- Chunk Number -->
-            <span class="text-xs text-gray-600">Chunk #{{ result.chunk_number }}</span>
         </div>
         
         <!-- Content Preview -->
-        <div class="text-sm text-gray-300 bg-black/30 rounded-lg p-3 leading-relaxed overflow-hidden">
+        <div class="text-sm text-gray-300 rounded-xl p-3 md:p-4 leading-relaxed overflow-hidden"
+             style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.05);">
             <div class="prose prose-sm prose-invert max-w-none">
                 {% set preview = result.content[:600] %}
                 {% if query %}
@@ -61,17 +63,18 @@
         <!-- Expand/Collapse -->
         {% if result.content|length > 600 %}
         <details class="mt-2">
-            <summary class="text-xs text-cyan-400 cursor-pointer hover:text-cyan-300">
+            <summary class="text-xs text-cyan-400 cursor-pointer hover:text-cyan-300 transition-colors px-1">
                 Show full content ({{ result.content|length }} chars)
             </summary>
-            <div class="mt-2 text-sm text-gray-400 bg-black/20 rounded-lg p-3 max-h-96 overflow-y-auto">
+            <div class="mt-2 text-sm text-gray-400 rounded-xl p-3 md:p-4 max-h-96 overflow-y-auto"
+                 style="background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.03);">
                 <pre class="whitespace-pre-wrap break-words">{{ result.content }}</pre>
             </div>
         </details>
         {% endif %}
         
         <!-- Metadata Footer -->
-        <div class="flex items-center gap-4 mt-3 text-xs text-gray-500">
+        <div class="flex flex-wrap items-center gap-3 md:gap-4 mt-3 text-xs text-gray-500">
             <span class="flex items-center gap-1">
                 <i data-lucide="hash" class="w-3 h-3"></i>
                 Chunk {{ result.chunk_number }}
@@ -81,10 +84,11 @@
                 {{ result.content|length }} chars
             </span>
             {% if result.source_id %}
-            <span class="flex items-center gap-1 text-gray-600">
+            <a href="/sources/{{ result.source_id }}" 
+               class="flex items-center gap-1 text-gray-600 hover:text-cyan-400 transition-colors">
                 <i data-lucide="database" class="w-3 h-3"></i>
                 {{ result.source_id[:8] if result.source_id|length > 8 else result.source_id }}
-            </span>
+            </a>
             {% endif %}
         </div>
     </div>
@@ -92,15 +96,19 @@
 </div>
 
 {% elif query %}
-<div class="text-center py-16">
-    <i data-lucide="search-x" class="w-16 h-16 text-gray-600 mx-auto mb-4"></i>
-    <p class="text-gray-500">No results found for "{{ query }}"</p>
-    <p class="text-gray-600 text-sm mt-2">Try different keywords or enable hybrid search</p>
+<div class="text-center py-16 glass rounded-2xl glow-card">
+    <div class="w-16 h-16 rounded-2xl bg-gray-500/10 flex items-center justify-center mx-auto mb-4">
+        <i data-lucide="search-x" class="w-8 h-8 text-gray-600"></i>
+    </div>
+    <p class="text-gray-400 font-medium">No results found for "<span class="text-cyan-400">{{ query }}</span>"</p>
+    <p class="text-gray-500 text-sm mt-2">Try different keywords or enable hybrid search</p>
 </div>
 
 {% else %}
-<div class="text-center py-16">
-    <i data-lucide="search" class="w-16 h-16 text-gray-600 mx-auto mb-4"></i>
-    <p class="text-gray-500">Enter a query to search your knowledge base</p>
+<div class="text-center py-16 glass rounded-2xl glow-card">
+    <div class="w-16 h-16 rounded-2xl bg-cyan-500/10 flex items-center justify-center mx-auto mb-4">
+        <i data-lucide="search" class="w-8 h-8 text-cyan-400/50"></i>
+    </div>
+    <p class="text-gray-400">Enter a query to search your knowledge base</p>
 </div>
 {% endif %}
